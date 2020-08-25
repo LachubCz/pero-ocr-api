@@ -23,8 +23,8 @@ def post_processing_request():
     )
 
 
-@bp.route('/request_status', methods=['GET'])
-def request_status():
+@bp.route('/request_status/<string:request_id>', methods=['GET'])
+def request_status(request_id):
     return jsonify({
         'status': 'success',
         'request_status': 'NEW'}
@@ -53,17 +53,18 @@ def cancel_request(request_id):
 
 @bp.route('/get_processing_request', methods=['GET'])
 def get_processing_request():
-    file = request.files['data']
-    content = file.read()
-    changes = json.loads(content)
-    print(changes)
-    return render_template('documentation.html')
+    request = None  # database query
+    return jsonify({
+        'request_id': request.id, 'baseline_id': request.baseline_id, 'ocr_id': request.ocr_id,
+        'language_model_id': request.language_model_id, 'document': {'id': request.document.id, 'images': []}}
+    )
 
 
 @bp.route('/upload_results', methods=['POST'])
 def upload_results():
     file = request.files['data']
     content = file.read()
-    changes = json.loads(content)
-    print(changes)
-    return render_template('documentation.html')
+
+    return jsonify({
+        'status': 'success'}
+    )
