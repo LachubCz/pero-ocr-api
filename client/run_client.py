@@ -10,8 +10,8 @@ import configparser
 import numpy as np
 
 from client_helper import join_url, log_in, check_request
-from pero_ocr.document_ocr.layout import PageLayout
-from pero_ocr.document_ocr.page_parser import PageParser
+#from pero_ocr.document_ocr.layout import PageLayout
+#from pero_ocr.document_ocr.page_parser import PageParser
 
 
 def get_args():
@@ -45,12 +45,12 @@ def send_data(session, file, base_url, url_path):
         return True
 
 
-def update_confidences(config):
+def post_processing_request(config):
     with requests.Session() as session:
         print()
         print("SENDING DATA TO SERVER")
         print("##############################################################")
-        if not send_data(session, file=config['SETTINGS']['file'], config['SERVER']['base_url'], config['SERVER']['update_path']):
+        if not send_data(session, file=config['SETTINGS']['file'], base_url=config['SERVER']['base_url'], url_path=config['SERVER']['post_processing_request']):
             return False
         print("##############################################################")
 
@@ -73,8 +73,8 @@ def main():
     if args.password is not None:
         config["SETTINGS"]['password'] = args.password
 
-    if config["SETTINGS"]['update_type'] == 'confidences':
-        if update_confidences(config):
+    if config["SETTINGS"]['command'] == 'post_processing_request':
+        if post_processing_request(config):
             print("REQUEST COMPLETED")
         else:
             print("REQUEST FAILED")

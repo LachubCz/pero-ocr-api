@@ -1,8 +1,7 @@
 {
-   "configuration":1,
-   "images":[
+   "configuration": 1,
+   "images": [
       "https://upload.wikimedia.org/wikipedia/commons/e/ee/Magna_Carta_%28British_Library_Cotton_MS_Augustus_II.106%29.jpg",
       "https://upload.wikimedia.org/wikipedia/commons/8/8f/United_States_Declaration_of_Independence.jpg"
-   ],
-   "API-KEY":"password"
+   ]
 }

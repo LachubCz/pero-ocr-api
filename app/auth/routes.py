@@ -41,7 +41,7 @@ def login():
         login_user(user, remember=True)
         return redirect(url_for('document.documents'))
     else:
-        return render_template('index.html', form_login=form)
+        return render_template('documentation.html', form_login=form)
 
 
 @bp.route('/logout')
