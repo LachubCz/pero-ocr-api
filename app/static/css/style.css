@@ -1,0 +1,33 @@
+footer img {
+  height: 50px;
+}
+
+.lostPassword {
+  font-size: 13px;
+}
+
+#content {
+  min-height: 70vh;
+}
+
+#firstName,
+#lastName {
+  text-transform: capitalize;
+}
+
+.add-document-button {
+  display: inline-flex;
+  align-items: center;
+}
+
+.add-document-button ion-icon {
+  margin-right: 0.5rem;
+}
+
+#newDocumentForm {
+  max-width: 500px;
+}
+
+.table td, .table th {
+  vertical-align: middle;
+}

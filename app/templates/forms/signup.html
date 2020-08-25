@@ -1,0 +1,23 @@
+<!-- templates/index.html -->
+{% import  "bootstrap/wtf.html" as wtf %}
+{% extends "base/base.html" %}
+{% block content %}
+    <div class="container-fluid px-4">
+
+    <div class="row mt-4">
+        <div class="offset-xl-2 col-xl-10">
+            <h3>Register</h3>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="offset-xl-2 col-xl-8">
+            {{ wtf.quick_form(form, extra_classes="register-form") }}
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block scripts %}
+    <script src="../static/js/PasswordRepeat.js?version=1.1"></script>
+{% endblock %}
