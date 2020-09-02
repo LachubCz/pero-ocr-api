@@ -8,7 +8,6 @@ from flask_dropzone import Dropzone
 
 from config import *
 from .db import Base
-from app.db.user import User
 
 engine = create_engine(database_url, convert_unicode=True, connect_args={'check_same_thread': False})
 
@@ -29,8 +28,6 @@ def create_app():
     jsglue = JSGlue()
     jsglue.init_app(app)
 
-    from app.db.user import User
-    from app.db.general import get_user_by_id
     from app.main import bp as main_bp
     app.register_blueprint(main_bp)
 

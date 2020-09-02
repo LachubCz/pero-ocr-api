@@ -1,4 +1,4 @@
-database_url = 'sqlite:///D:/pero/pero_ocr_web_data/db.sqlite'
+database_url = 'sqlite:///C:/Users/LachubCz_NTB/Documents/GitHub/PERO-API/app/database.db'
 
 class Config(object):
     DEBUG = False
