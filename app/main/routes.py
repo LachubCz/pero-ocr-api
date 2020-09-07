@@ -1,16 +1,19 @@
 import json
 from flask import render_template, redirect, url_for, flash, request, jsonify, send_file
 from app.main import bp
+from app.db.api_key import require_app_key
 
 
 @bp.route('/')
 @bp.route('/docs')
 @bp.route('/index')
+@require_app_key
 def index():
     return render_template('documentation.html')
 
 
 @bp.route('/post_processing_request', methods=['POST'])
+@require_app_key
 def post_processing_request():
     file = request.files['data']
     content = file.read()

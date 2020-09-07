@@ -30,12 +30,13 @@ def get_args():
     return args
 
 
-def send_data(session, file, base_url, url_path):
+def send_data(session, file, base_url, url_path, headers):
     with open(file, "rb") as f:
         data = f.read()
 
     r = session.post(join_url(base_url, url_path),
-                     files={'data': ('data.json', data, 'text/plain')})
+                     files={'data': ('data.json', data, 'text/plain')},
+                     headers=headers)
 
     if not check_request(r):
         print("FAILED")
@@ -50,7 +51,8 @@ def post_processing_request(config):
         print()
         print("SENDING DATA TO SERVER")
         print("##############################################################")
-        if not send_data(session, file=config['SETTINGS']['file'], base_url=config['SERVER']['base_url'], url_path=config['SERVER']['post_processing_request']):
+        headers = {'api-key': config['SETTINGS']['api_key']}
+        if not send_data(session, file=config['SETTINGS']['file'], base_url=config['SERVER']['base_url'], url_path=config['SERVER']['post_processing_request'], headers=headers):
             return False
         print("##############################################################")
 
@@ -69,9 +71,7 @@ def main():
     if args.document_id is not None:
         config["SETTINGS"]['document_id'] = args.document_id
     if args.login is not None:
-        config["SETTINGS"]['login'] = args.login
-    if args.password is not None:
-        config["SETTINGS"]['password'] = args.password
+        config["SETTINGS"]['api_key'] = args.login
 
     if config["SETTINGS"]['command'] == 'post_processing_request':
         if post_processing_request(config):

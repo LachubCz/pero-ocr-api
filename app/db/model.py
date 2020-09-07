@@ -51,8 +51,8 @@ class Request(Base):
     modification_timestamp = Column(DateTime(), nullable=False, default=datetime.datetime.utcnow)
     finish_timestamp = Column(DateTime(), nullable=True)
 
-    engine_id = Column(GUID(), ForeignKey('engine.id'), nullable=False)
-    pages = relationship('Page', back_populates="request", lazy='dynamic')
+    engine = Column(GUID(), ForeignKey('engine.id'), nullable=False)
+    #pages = relationship('Page', back_populates="request", lazy='dynamic')
 
     def __init__(self, engine_id):
         self.engine_id = engine_id
@@ -67,7 +67,7 @@ class Page(Base):
     state = Column(Enum(PageState), nullable=False)
     finish_timestamp = Column(DateTime(), nullable=True)
 
-    request_id = Column(GUID(), ForeignKey('request.id'), nullable=False)
+    request = Column(GUID(), ForeignKey('request.id'), nullable=False)
     engine_version = Column(Integer(), ForeignKey('engine_version.id'), nullable=True)
 
     def __init__(self, name, path, state, request_id):
@@ -84,7 +84,8 @@ class Engine(Base):
     name = Column(String(), nullable=False)
     description = Column(String(), nullable=True)
 
-    versions = relationship('EngineVersion', back_populates="engine", lazy='dynamic')
+    #versions = relationship('EngineVersion', back_populates="engine", lazy='dynamic')
+    #requests = relationship('Request', back_populates="engine", lazy='dynamic')
 
     def __init__(self, name, description):
         self.name = name
@@ -96,9 +97,9 @@ class EngineVersion(Base):
     __table_args__ = {'extend_existing': True}
     id = Column(Integer(), primary_key=True)
     version = Column(String(), nullable=False)
-    engine_id = Column(Integer, ForeignKey('engine.id'), nullable=False)
+    engine = Column(Integer(), ForeignKey('engine.id'), nullable=False)
 
-    pages = relationship('Page', back_populates="engine_version", lazy='dynamic')
+    #pages = relationship('Page', back_populates="engine_version", lazy='dynamic')
 
     def __init__(self, version, engine_id):
         self.version = version
