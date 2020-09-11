@@ -1,40 +1,55 @@
 import json
-from flask import render_template, redirect, url_for, flash, request, jsonify, send_file
+from flask import render_template, redirect, url_for, flash, request, jsonify, send_file, abort
 from app.main import bp
-from app.db.api_key import require_app_key
+from app.db.api_key import require_user_api_key, require_super_user_api_key
+
+from app.main.general import process_request, get_document_status, request_exists
 
 
 @bp.route('/')
 @bp.route('/docs')
 @bp.route('/index')
-@require_app_key
 def index():
     return render_template('documentation.html')
 
 
 @bp.route('/post_processing_request', methods=['POST'])
-@require_app_key
+@require_user_api_key
 def post_processing_request():
     file = request.files['data']
     content = file.read()
-    json_string = json.loads(content)
-    print(json_string)
+    json_content = json.loads(content)
+    db_request = process_request(json_content)
 
-    return jsonify({
-        'status': 'success',
-        'request_id': '1'}
-    )
+    if db_request is not None:
+        return jsonify({
+            'status': 'success',
+            'request_id': db_request.id}
+        )
+    else:
+        return jsonify({
+            'status': 'failure',
+            'request_id': None}
+        )
 
 
 @bp.route('/request_status/<string:request_id>', methods=['GET'])
+@require_user_api_key
 def request_status(request_id):
+    if not request_exists(request_id):
+        abort(404)
+
+    status, quality = get_document_status(request_id)
+
     return jsonify({
         'status': 'success',
-        'request_status': 'NEW'}
+        'request_status': '{} %' .format(status),
+        'quality': '{} %' .format(quality)}
     )
 
 
 @bp.route('/ocr_systems', methods=['GET'])
+@require_user_api_key
 def ocr_systems():
     return jsonify({
         'status': 'success',
@@ -43,11 +58,13 @@ def ocr_systems():
 
 
 @bp.route('/download_results', methods=['GET'])
+@require_user_api_key
 def download_results():
     return send_file('filepath', as_attachment=True, attachment_filename='filename')
 
 
 @bp.route('/cancel_request/<string:request_id>', methods=['POST'])
+@require_user_api_key
 def cancel_request(request_id):
     return jsonify({
         'status': 'success'}
@@ -55,6 +72,7 @@ def cancel_request(request_id):
 
 
 @bp.route('/get_processing_request', methods=['GET'])
+@require_super_user_api_key
 def get_processing_request():
     request = None  # database query
     return jsonify({
@@ -64,6 +82,7 @@ def get_processing_request():
 
 
 @bp.route('/upload_results', methods=['POST'])
+@require_super_user_api_key
 def upload_results():
     file = request.files['data']
     content = file.read()

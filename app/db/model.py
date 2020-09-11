@@ -3,7 +3,7 @@ import datetime
 from app.db import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy import Column, Enum, ForeignKey, Integer, String, DateTime
+from sqlalchemy import Column, Enum, ForeignKey, Integer, String, DateTime, Float
 from app.db.guid import GUID
 import enum
 from sqlalchemy.orm import relationship
@@ -51,7 +51,7 @@ class Request(Base):
     modification_timestamp = Column(DateTime(), nullable=False, default=datetime.datetime.utcnow)
     finish_timestamp = Column(DateTime(), nullable=True)
 
-    engine = Column(GUID(), ForeignKey('engine.id'), nullable=False)
+    engine_id = Column(Integer(), ForeignKey('engine.id'), nullable=False)
     #pages = relationship('Page', back_populates="request", lazy='dynamic')
 
     def __init__(self, engine_id):
@@ -64,16 +64,16 @@ class Page(Base):
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(), nullable=False)
     path = Column(String(), nullable=False)
-    state = Column(Enum(PageState), nullable=False)
+    state = Column(Enum(PageState), nullable=False, default=PageState.WAITING)
+    score = Column(Float(), nullable=True)
     finish_timestamp = Column(DateTime(), nullable=True)
 
-    request = Column(GUID(), ForeignKey('request.id'), nullable=False)
+    request_id = Column(GUID(), ForeignKey('request.id'), nullable=False)
     engine_version = Column(Integer(), ForeignKey('engine_version.id'), nullable=True)
 
-    def __init__(self, name, path, state, request_id):
+    def __init__(self, name, path, request_id):
         self.name = name
         self.path = path
-        self.state = state
         self.request_id = request_id
 
 
