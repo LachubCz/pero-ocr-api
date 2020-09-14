@@ -3,7 +3,7 @@ from flask import render_template, redirect, url_for, flash, request, jsonify, s
 from app.main import bp
 from app.db.api_key import require_user_api_key, require_super_user_api_key
 
-from app.main.general import process_request, get_document_status, request_exists
+from app.main.general import process_request, get_document_status, request_exists, cancel_request_by_id, get_ocr_systems
 
 
 @bp.route('/')
@@ -51,9 +51,10 @@ def request_status(request_id):
 @bp.route('/ocr_systems', methods=['GET'])
 @require_user_api_key
 def ocr_systems():
+    ocr_systems = get_ocr_systems()
     return jsonify({
         'status': 'success',
-        'ocr_system': []}
+        'ocr_system': ocr_systems}
     )
 
 
@@ -66,6 +67,9 @@ def download_results():
 @bp.route('/cancel_request/<string:request_id>', methods=['POST'])
 @require_user_api_key
 def cancel_request(request_id):
+    if not request_exists(request_id):
+        abort(404)
+    cancel_request_by_id(request_id)
     return jsonify({
         'status': 'success'}
     )

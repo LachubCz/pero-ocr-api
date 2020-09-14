@@ -22,6 +22,7 @@ class RequestState(enum.Enum):
 class PageState(enum.Enum):
     WAITING = 'Page is waiting for processing.'
     PROCESSED = 'Page was processed.'
+    CANCELED = 'Page processing was canceled.'
 
 
 class Permission(enum.Enum):

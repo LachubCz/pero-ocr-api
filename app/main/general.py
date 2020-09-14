@@ -34,3 +34,19 @@ def get_document_status(request_id):
     quality = db_session.query(func.avg(Page.score)).filter(Page.request_id == request_id).filter(Page.state == PageState.PROCESSED).first()[0]
 
     return status, quality
+
+
+def cancel_request_by_id(request_id):
+    waiting_pages = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.state == PageState.WAITING).all()
+    for page in waiting_pages:
+        page.state = PageState.CANCELED
+    db_session.commit()
+
+
+def get_ocr_systems():
+    engines = db_session.query(Engine).all()
+    engines_dict = []
+    for engine in engines:
+        engines_dict.append({'id': engine.id, 'name': engine.name, 'description': engine.description})
+
+    return engines_dict
