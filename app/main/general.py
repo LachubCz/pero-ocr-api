@@ -1,4 +1,5 @@
 import os
+import sqlalchemy
 from sqlalchemy import func
 
 from app.db.model import Request, Engine, Page, PageState, ApiKey, EngineVersion
@@ -7,17 +8,22 @@ from app.wsgi import app
 
 
 def request_exists(request_id):
-    request = db_session.query(Request).filter(Request.id == request_id).first()
+    try:
+        request = db_session.query(Request).filter(Request.id == request_id).first()
+    except sqlalchemy.exc.StatementError:
+        return False
+
     if request is not None:
         return True
     else:
         return False
 
 
-def process_request(json_request):
+def process_request(api_string, json_request):
     engine = db_session.query(Engine).filter(Engine.id == int(json_request["configuration"])).first()
+    api_key = db_session.query(ApiKey).filter(ApiKey.api_string == api_string).first()
     if engine is not None:
-        request = Request(engine.id)
+        request = Request(engine.id, api_key.id)
         db_session.add(request)
         db_session.commit()
         for image_name in json_request["images"]:
@@ -83,14 +89,16 @@ def get_page_by_preferred_engine(engine_id):
 def request_belongs_to_api_key(api_key, request_id):
     api_key = db_session.query(ApiKey).filter(ApiKey.api_string == api_key).first()
     request = db_session.query(Request).filter(Request.api_key_id == api_key.id).filter(Request.id == request_id).first()
-
     return request
 
 
 def get_engine_version(engine_id, version_name):
     engine_version = db_session.query(EngineVersion).filter(EngineVersion.version == version_name).first()
     if not engine_version:
-        EngineVersion(version_name, engine_id)
+        engine_version = EngineVersion(version_name, engine_id)
+        db_session.add(engine_version)
+        db_session.commit()
+    return engine_version
 
 
 def get_engine_by_page_id(page_id):

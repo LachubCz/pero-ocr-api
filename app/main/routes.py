@@ -26,10 +26,11 @@ def index():
 @bp.route('/post_processing_request', methods=['POST'])
 @require_user_api_key
 def post_processing_request():
+    api_string = request.headers.get('api-key')
     file = request.files['data']
     content = file.read()
     json_content = json.loads(content)
-    db_request = process_request(json_content)
+    db_request = process_request(api_string, json_content)
 
     if db_request is not None:
         return jsonify({
