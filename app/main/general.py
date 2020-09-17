@@ -1,7 +1,9 @@
+import os
 from sqlalchemy import func
 
-from app.db.model import Request, Engine, Page, PageState
+from app.db.model import Request, Engine, Page, PageState, ApiKey, EngineVersion
 from app import db_session
+from app.wsgi import app
 
 
 def request_exists(request_id):
@@ -37,7 +39,7 @@ def get_document_status(request_id):
 
 
 def cancel_request_by_id(request_id):
-    waiting_pages = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.state == PageState.WAITING).all()
+    waiting_pages = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.state != PageState.PROCESSED).all()
     for page in waiting_pages:
         page.state = PageState.CANCELED
     db_session.commit()
@@ -50,3 +52,62 @@ def get_ocr_systems():
         engines_dict.append({'id': engine.id, 'name': engine.name, 'description': engine.description})
 
     return engines_dict
+
+
+def get_page_by_id(page_id):
+    page = db_session.query(Page).filter(Page.id == page_id).first()
+
+    return page
+
+
+def check_save_path(request_id):
+    if not os.path.isdir(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_id))):
+        os.mkdir(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_id)))
+
+
+def get_page_by_preferred_engine(engine_id):
+    page = db_session.query(Page).join(Request).filter(Page.state == PageState.WAITING)\
+                                               .filter(Request.engine_id == engine_id).first()
+    if not page:
+        page = db_session.query(Page).filter(Page.state == PageState.WAITING).first()
+        if page:
+            engine_id = db_session.query(Request.engine_id).filter(Request.id == page.request_id).first()[0]
+
+    if page:
+        page.state = PageState.PROCESSING
+        db_session.commit()
+
+    return page, engine_id
+
+
+def request_belongs_to_api_key(api_key, request_id):
+    api_key = db_session.query(ApiKey).filter(ApiKey.api_string == api_key).first()
+    request = db_session.query(Request).filter(Request.api_key_id == api_key.id).filter(Request.id == request_id).first()
+
+    return request
+
+
+def get_engine_version(engine_id, version_name):
+    engine_version = db_session.query(EngineVersion).filter(EngineVersion.version == version_name).first()
+    if not engine_version:
+        EngineVersion(version_name, engine_id)
+
+
+def get_engine_by_page_id(page_id):
+    engine = db_session.query(Engine).join(Request).join(Page).filter(Page.id == page_id).first()
+    return engine
+
+
+def change_page_to_processed(page_id, score, engine_version):
+    page = db_session.query(Page).filter(Page.id == page_id).first()
+
+    page.score = score
+    page.state = PageState.PROCESSED
+    page.engine_version = engine_version
+
+    db_session.commit()
+
+
+def is_request_processed(request_id):
+    return True
+    # todo

@@ -21,6 +21,7 @@ class RequestState(enum.Enum):
 
 class PageState(enum.Enum):
     WAITING = 'Page is waiting for processing.'
+    PROCESSING = 'Page is being processed.'
     PROCESSED = 'Page was processed.'
     CANCELED = 'Page processing was canceled.'
 
@@ -53,10 +54,12 @@ class Request(Base):
     finish_timestamp = Column(DateTime(), nullable=True)
 
     engine_id = Column(Integer(), ForeignKey('engine.id'), nullable=False)
+    api_key_id = Column(Integer(), ForeignKey('api_key.id'), nullable=False)
     #pages = relationship('Page', back_populates="request", lazy='dynamic')
 
-    def __init__(self, engine_id):
+    def __init__(self, engine_id, api_key_id):
         self.engine_id = engine_id
+        self.api_key_id = api_key_id
 
 
 class Page(Base):
@@ -64,7 +67,7 @@ class Page(Base):
     __table_args__ = {'extend_existing': True}
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(), nullable=False)
-    path = Column(String(), nullable=False)
+    url = Column(String(), nullable=False)
     state = Column(Enum(PageState), nullable=False, default=PageState.WAITING)
     score = Column(Float(), nullable=True)
     finish_timestamp = Column(DateTime(), nullable=True)
@@ -72,9 +75,9 @@ class Page(Base):
     request_id = Column(GUID(), ForeignKey('request.id'), nullable=False)
     engine_version = Column(Integer(), ForeignKey('engine_version.id'), nullable=True)
 
-    def __init__(self, name, path, request_id):
+    def __init__(self, name, url, request_id):
         self.name = name
-        self.path = path
+        self.url = url
         self.request_id = request_id
 
 
@@ -108,7 +111,7 @@ class EngineVersion(Base):
 
 
 if __name__ == '__main__':
-    engine = create_engine('sqlite:///{}'.format('database.db'),
+    engine = create_engine('sqlite:///{}'.format('C:/Users/LachubCz_NTB/Documents/GitHub/PERO-API/app/database.db'),
                            convert_unicode=True,
                            connect_args={'check_same_thread': False})
     db_session = scoped_session(sessionmaker(autocommit=False,
@@ -116,3 +119,25 @@ if __name__ == '__main__':
                                              bind=engine))
     Base.query = db_session.query_property()
     Base.metadata.create_all(bind=engine)
+
+    engine = Engine('Engine', 'description')
+    db_session.add(engine)
+    db_session.commit()
+
+    api_key = ApiKey('test_user', 'Owner of The Key', Permission.SUPER_USER)
+    db_session.add(api_key)
+    db_session.commit()
+
+    request = Request(engine.id, api_key.id)
+    db_session.add(request)
+    db_session.commit()
+
+    page1 = Page('Magna_Carta', 'https://upload.wikimedia.org/wikipedia/commons/e/ee/Magna_Carta_%28British_Library_Cotton_MS_Augustus_II.106%29.jpg', request.id)
+    db_session.add(page1)
+    page2 = Page('United_States_Declaration_of_Independence', 'https://upload.wikimedia.org/wikipedia/commons/8/8f/United_States_Declaration_of_Independence.jpg', request.id)
+    db_session.add(page2)
+    db_session.commit()
+
+    page1.state = PageState.PROCESSED
+    page1.score = 86.7
+    db_session.commit()
