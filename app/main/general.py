@@ -29,9 +29,9 @@ def process_request(json_request):
 
 
 def get_document_status(request_id):
-    waiting = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.state == PageState.WAITING).count()
+    not_processed = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.state != PageState.PROCESSED).count()
     processed = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.state == PageState.PROCESSED).count()
-    status = processed / (processed + waiting)
+    status = processed / (processed + not_processed)
 
     quality = db_session.query(func.avg(Page.score)).filter(Page.request_id == request_id).filter(Page.state == PageState.PROCESSED).first()[0]
 
@@ -109,5 +109,8 @@ def change_page_to_processed(page_id, score, engine_version):
 
 
 def is_request_processed(request_id):
-    return True
-    # todo
+    status, _ = get_document_status(request_id)
+    if status == 100:
+        return True
+    else:
+        return False
