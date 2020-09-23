@@ -2,6 +2,7 @@ database_url = 'sqlite:///C:/Users/LachubCz_NTB/Documents/GitHub/PERO-API/app/da
 
 class Config(object):
     DEBUG = False
+    PROCESSED_REQUESTS_FOLDER = 'C:/Users/LachubCz_NTB/Documents/GitHub/PERO-API/processed_requests'
     UPLOAD_IMAGE_FOLDER = 'D:/pero/pero_ocr_web_data/uploaded_images/'
     LAYOUT_RESULTS_FOLDER = 'D:/pero/pero_ocr_web_data/layout_analysis_results/'
     OCR_RESULTS_FOLDER = 'D:/pero/pero_ocr_web_data/ocr_results/'

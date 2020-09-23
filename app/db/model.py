@@ -101,7 +101,7 @@ class EngineVersion(Base):
     __table_args__ = {'extend_existing': True}
     id = Column(Integer(), primary_key=True)
     version = Column(String(), nullable=False)
-    engine = Column(Integer(), ForeignKey('engine.id'), nullable=False)
+    engine_id = Column(Integer(), ForeignKey('engine.id'), nullable=False)
 
     #pages = relationship('Page', back_populates="engine_version", lazy='dynamic')
 

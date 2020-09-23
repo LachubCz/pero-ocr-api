@@ -102,7 +102,10 @@ def get_engine_version(engine_id, version_name):
 
 
 def get_engine_by_page_id(page_id):
-    engine = db_session.query(Engine).join(Request).join(Page).filter(Page.id == page_id).first()
+    page = db_session.query(Page).filter(Page.id == page_id).first()
+    request = db_session.query(Request).filter(Request.id == page.request_id).first()
+    engine = db_session.query(Engine).filter(Engine.id == request.engine_id).first()
+
     return engine
 
 
