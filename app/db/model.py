@@ -120,15 +120,21 @@ if __name__ == '__main__':
     Base.query = db_session.query_property()
     Base.metadata.create_all(bind=engine)
 
-    engine = Engine('Engine', 'description')
-    db_session.add(engine)
+    pages = db_session.query(Page).all()
+
+    engine_1 = Engine('Engine_1', 'description')
+    db_session.add(engine_1)
+    db_session.commit()
+
+    engine_2 = Engine('Engine_2', 'description')
+    db_session.add(engine_2)
     db_session.commit()
 
     api_key = ApiKey('test_user', 'Owner of The Key', Permission.SUPER_USER)
     db_session.add(api_key)
     db_session.commit()
 
-    request = Request(engine.id, api_key.id)
+    request = Request(engine_1.id, api_key.id)
     db_session.add(request)
     db_session.commit()
 
@@ -140,4 +146,14 @@ if __name__ == '__main__':
 
     page1.state = PageState.PROCESSED
     page1.score = 86.7
+    db_session.commit()
+
+    request = Request(engine_2.id, api_key.id)
+    db_session.add(request)
+    db_session.commit()
+
+    page1 = Page('Magna_Carta', 'https://upload.wikimedia.org/wikipedia/commons/e/ee/Magna_Carta_%28British_Library_Cotton_MS_Augustus_II.106%29.jpg', request.id)
+    db_session.add(page1)
+    page2 = Page('United_States_Declaration_of_Independence', 'https://upload.wikimedia.org/wikipedia/commons/8/8f/United_States_Declaration_of_Independence.jpg', request.id)
+    db_session.add(page2)
     db_session.commit()
