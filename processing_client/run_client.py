@@ -1,21 +1,14 @@
 import os
-import cv2
-import glob
 import time
 import json
-import shutil
-import cv2
 import urllib.request
 import io
 import PIL.Image as Image
-import ntpath
 import requests
 import argparse
-import subprocess
 import configparser
 import numpy as np
 
-from client_helper import join_url, log_in, check_request
 from pero_ocr.document_ocr.page_parser import PageParser
 from pero_ocr.document_ocr.layout import PageLayout
 
@@ -33,6 +26,17 @@ def get_args():
     args = parser.parse_args()
 
     return args
+
+
+def join_url(*paths):
+    final_paths = []
+    first_path = paths[0].strip()
+    if first_path[-1] == '/':
+        first_path = first_path[:-1]
+    final_paths.append(first_path)
+    for path in paths[1:]:
+        final_paths.append(path.strip().strip('/'))
+    return '/'.join(final_paths)
 
 
 def get_engine_by_id(engines_declaration, engine_id):
