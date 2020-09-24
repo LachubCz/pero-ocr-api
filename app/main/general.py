@@ -1,4 +1,5 @@
 import os
+import datetime
 import sqlalchemy
 from sqlalchemy import func
 
@@ -111,17 +112,24 @@ def get_engine_by_page_id(page_id):
 
 def change_page_to_processed(page_id, score, engine_version):
     page = db_session.query(Page).filter(Page.id == page_id).first()
+    request = db_session.query(Request).filter(Request.id == page.request_id).first()
 
     page.score = score
     page.state = PageState.PROCESSED
     page.engine_version = engine_version
 
+    timestamp = datetime.datetime.utcnow()
+    page.finish_timestamp = timestamp
+    request.modification_timestamp = timestamp
     db_session.commit()
+    if is_request_processed(request.id):
+        request.finish_timestamp = timestamp
+        db_session.commit()
 
 
 def is_request_processed(request_id):
     status, _ = get_document_status(request_id)
-    if status == 100:
+    if status == 1.0:
         return True
     else:
         return False
