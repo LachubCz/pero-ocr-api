@@ -83,7 +83,6 @@ def main():
                     engine_config.read(engine["versions"][-1]["path_to_config"])
                     page_parser = PageParser(engine_config,
                                              config_path=os.path.dirname(engine["versions"][-1]["path_to_config"]))
-                    config["SETTINGS"]['preferred_engine'] = int(engine_id)
 
                 page = urllib.request.urlopen(page_url).read()
                 stream = io.BytesIO(page)

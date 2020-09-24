@@ -12,12 +12,12 @@ def request_exists(request_id):
     try:
         request = db_session.query(Request).filter(Request.id == request_id).first()
     except sqlalchemy.exc.StatementError:
-        return False
+        return None
 
     if request is not None:
-        return True
+        return request
     else:
-        return False
+        return None
 
 
 def process_request(api_string, json_request):
@@ -94,7 +94,10 @@ def request_belongs_to_api_key(api_key, request_id):
 
 
 def get_engine_version(engine_id, version_name):
-    engine_version = db_session.query(EngineVersion).filter(EngineVersion.version == version_name).first()
+    engine_version = db_session.query(EngineVersion)\
+        .filter(EngineVersion.version == version_name)\
+        .filter(EngineVersion.engine_id == engine_id)\
+        .first()
     if not engine_version:
         engine_version = EngineVersion(version_name, engine_id)
         db_session.add(engine_version)

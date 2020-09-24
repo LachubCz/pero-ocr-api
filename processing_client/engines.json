@@ -12,6 +12,19 @@
           "path_to_config": "C:\\Users\\LachubCz_NTB\\Documents\\GitHub\\PERO-API\\processing_client\\engines\\example_config.ini"
         }
       ]
+    },
+    {
+      "engine_id": 2,
+      "versions": [
+        {
+          "version_id": "v0.0.1",
+          "path_to_config": "C:\\Users\\LachubCz_NTB\\Documents\\GitHub\\PERO-API\\processing_client\\engines\\example_config.ini"
+        },
+        {
+          "version_id": "v0.0.2",
+          "path_to_config": "C:\\Users\\LachubCz_NTB\\Documents\\GitHub\\PERO-API\\processing_client\\engines\\example_config.ini"
+        }
+      ]
     }
   ]
 }

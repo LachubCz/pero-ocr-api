@@ -83,8 +83,8 @@ def ocr_systems():
 @bp.route('/download_results/<string:request_id>', methods=['GET'])
 @require_user_api_key
 def download_results(request_id):
-    request = request_exists(request_id)
-    if not request:
+    request_ = request_exists(request_id)
+    if not request_:
         return jsonify({
             'status': 'failure'}
         )
@@ -99,7 +99,7 @@ def download_results(request_id):
 
     memory_file = BytesIO()
     with zipfile.ZipFile(memory_file, 'w') as zf:
-        files = glob.glob(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request.id)) + '/*.xml')
+        files = glob.glob(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id)) + '/*.xml')
         for filename in files:
             f = open(filename, "r")
             content = f.read()
