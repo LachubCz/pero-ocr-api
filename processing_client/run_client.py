@@ -1,16 +1,18 @@
 import os
-import time
-import json
-import urllib.request
+import re
 import io
-import PIL.Image as Image
+import time
+import zipfile
 import requests
 import argparse
 import configparser
+import urllib.request
+
 import numpy as np
+import PIL.Image as Image
 
 from pero_ocr.document_ocr.page_parser import PageParser
-from pero_ocr.document_ocr.layout import PageLayout
+from pero_ocr.document_ocr.layout import PageLayout, create_ocr_processing_element
 
 
 def get_args():
@@ -39,10 +41,37 @@ def join_url(*paths):
     return '/'.join(final_paths)
 
 
-def get_engine_by_id(engines_declaration, engine_id):
-    for engine in engines_declaration['engines']:
-        if int(engine["engine_id"]) == int(engine_id):
-            return engine
+def get_engine(config, headers, engine_id):
+    r = requests.get(join_url(config['SERVER']['base_url'],
+                              config['SERVER']['get_download_engine'],
+                              str(engine_id)),
+                     headers=headers)
+
+    d = r.headers['content-disposition']
+    filename = re.findall("filename=(.+)", d)[0]
+    engine_name = filename[:-4].split('#')[0]
+    engine_version = filename[:-4].split('#')[1]
+    if not os.path.exists(os.path.join(config["SETTINGS"]['engines_path'], filename[:-4])):
+        os.mkdir(os.path.join(config["SETTINGS"]['engines_path'], filename[:-4]))
+        with open(os.path.join(config["SETTINGS"]['engines_path'], filename[:-4], filename), 'wb') as f:
+            f.write(r.content)
+        with zipfile.ZipFile(os.path.join(config["SETTINGS"]['engines_path'], filename[:-4], filename), 'r') as f:
+            f.extractall(os.path.join(config["SETTINGS"]['engines_path'], filename[:-4]))
+
+    engine_config = configparser.ConfigParser()
+    engine_config.read(os.path.join(config["SETTINGS"]['engines_path'], filename[:-4], 'config.ini'))
+    page_parser = PageParser(engine_config,
+                             config_path=os.path.dirname(os.path.join(config["SETTINGS"]['engines_path'],
+                                                                      filename[:-4],
+                                                                      'config.ini')))
+    return page_parser, engine_name, engine_version
+
+
+def get_page_layout_text(page_layout):
+    text = ""
+    for line in page_layout.lines_iterator():
+        text += "{}\n".format(line.transcription)
+    return text
 
 
 def main():
@@ -60,20 +89,14 @@ def main():
     if args.engine is not None:
         config["SETTINGS"]['preferred_engine'] = args.preferred_engine
 
-    with open(config["SETTINGS"]['engines_declaration']) as json_file:
-        engines = json.load(json_file)
-    engine = get_engine_by_id(engines, config["SETTINGS"]['preferred_engine'])
-
-    engine_config = configparser.ConfigParser()
-    engine_config.read(engine["versions"][-1]["path_to_config"])
-    page_parser = PageParser(engine_config, config_path=os.path.dirname(engine["versions"][-1]["path_to_config"]))
-
     with requests.Session() as session:
+        headers = {'api-key': config['SETTINGS']['api_key']}
+        page_parser, engine_name, engine_version = get_engine(config, headers, config["SETTINGS"]['preferred_engine'])
+
         while True:
-            headers = {'api-key': config['SETTINGS']['api_key']}
             r = session.get(join_url(config['SERVER']['base_url'],
                                      config['SERVER']['get_processing_request'],
-                                     config["SETTINGS"]['preferred_engine']),
+                                     config['SETTINGS']['preferred_engine']),
                             headers=headers)
             request = r.json()
             status = request['status']
@@ -82,11 +105,9 @@ def main():
             engine_id = request['engine_id']
 
             if status == 'success':
-                if engine_id != int(engine["engine_id"]):
-                    engine = get_engine_by_id(engines, engine_id)
-                    engine_config.read(engine["versions"][-1]["path_to_config"])
-                    page_parser = PageParser(engine_config,
-                                             config_path=os.path.dirname(engine["versions"][-1]["path_to_config"]))
+                if engine_id != int(config['SETTINGS']['preferred_engine']):
+                    page_parser, engine_name, engine_version = get_engine(config, headers, engine_id)
+                    config['SETTINGS']['preferred_engine'] = str(engine_id)
 
                 page = urllib.request.urlopen(page_url).read()
                 stream = io.BytesIO(page)
@@ -99,11 +120,19 @@ def main():
                 page_layout = page_parser.process_page(open_cv_image, page_layout)
 
                 headers = {'api-key': config['SETTINGS']['api_key'],
-                           'engine-version': engine["versions"][-1]['version_id'],
+                           'engine-version': engine_version,
                            'score': '100'}
 
+                ocr_processing = create_ocr_processing_element(id="IdOcr",
+                                                               software_creator_str="Project PERO",
+                                                               software_name_str="{}" .format(engine_name),
+                                                               software_version_str="{}" .format(engine_version),
+                                                               processing_datetime=None)
+
                 session.post(join_url(config['SERVER']['base_url'], config['SERVER']['post_upload_results'], page_id),
-                             files={'data': ('{}.xml' .format(page_id), page_layout.to_pagexml_string(), 'text/plain')},
+                             files={'alto': ('{}_alto.xml' .format(page_id), page_layout.to_altoxml_string(ocr_processing=ocr_processing), 'text/plain'),
+                                    'xml': ('{}.xml' .format(page_id), page_layout.to_pagexml_string(), 'text/plain'),
+                                    'txt': ('{}.txt' .format(page_id), get_page_layout_text(page_layout), 'text/plain')},
                              headers=headers)
             else:
                 time.sleep(10)

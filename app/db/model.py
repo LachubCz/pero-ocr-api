@@ -20,8 +20,10 @@ class RequestState(enum.Enum):
 
 
 class PageState(enum.Enum):
+    CREATED = 'Page was created.'
     WAITING = 'Page is waiting for processing.'
     PROCESSING = 'Page is being processed.'
+    FAILED = 'Page processing failed.'
     PROCESSED = 'Page was processed.'
     CANCELED = 'Page processing was canceled.'
 
@@ -101,13 +103,40 @@ class EngineVersion(Base):
     __table_args__ = {'extend_existing': True}
     id = Column(Integer(), primary_key=True)
     version = Column(String(), nullable=False)
+    config_path = Column(String(), nullable=False)
+    description = Column(String(), nullable=True)
     engine_id = Column(Integer(), ForeignKey('engine.id'), nullable=False)
 
     #pages = relationship('Page', back_populates="engine_version", lazy='dynamic')
 
-    def __init__(self, version, engine_id):
+    def __init__(self, version, config_path, engine_id):
         self.version = version
+        self.config_path = config_path
         self.engine_id = engine_id
+
+
+class EngineVersionModel(Base):
+    __tablename__ = 'engine_version_model'
+    __table_args__ = {'extend_existing': True}
+    id = Column(Integer(), primary_key=True)
+    engine_version_id = Column(Integer(), ForeignKey('engine_version.id'), nullable=False)
+    model_id = Column(Integer(), ForeignKey('model.id'), nullable=False)
+
+    def __init__(self, engine_version_id, model_id):
+        self.engine_version_id = engine_version_id
+        self.model_id = model_id
+
+
+class Model(Base):
+    __tablename__ = 'model'
+    __table_args__ = {'extend_existing': True}
+    id = Column(Integer(), primary_key=True)
+    name = Column(String(), nullable=False)
+    path = Column(String(), nullable=False)
+
+    def __init__(self, name, path):
+        self.name = name
+        self.path = path
 
 
 if __name__ == '__main__':
@@ -126,9 +155,44 @@ if __name__ == '__main__':
     db_session.add(engine_1)
     db_session.commit()
 
+    engine_version_1_1 = EngineVersion('v0.0.1', 'C:\\Users\\LachubCz_NTB\\Documents\\GitHub\\PERO-API\\processing_client\\engines\\example_config.ini', engine_1.id)
+    db_session.add(engine_version_1_1)
+    db_session.commit()
+
     engine_2 = Engine('Engine_2', 'description')
     db_session.add(engine_2)
     db_session.commit()
+
+    engine_version_2_1 = EngineVersion('v0.0.1', 'C:\\Users\\LachubCz_NTB\\Documents\\GitHub\\PERO-API\\processing_client\\engines\\example_config.ini', engine_2.id)
+    db_session.add(engine_version_2_1)
+    db_session.commit()
+
+    engine_version_1_2 = EngineVersion('v0.0.2', 'C:\\Users\\LachubCz_NTB\\Documents\\GitHub\\PERO-API\\processing_client\\engines\\example_config.ini', engine_1.id)
+    db_session.add(engine_version_1_2)
+    db_session.commit()
+
+    model_1 = Model('lidove_noviny', 'C:/Users/LachubCz_NTB/Documents/GitHub/PERO-API/models/lidove_noviny/model/')
+    db_session.add(model_1)
+    db_session.commit()
+
+    model_2 = Model('universal', 'C:/Users/LachubCz_NTB/Documents/GitHub/PERO-API/models/universal/model/')
+    db_session.add(model_2)
+    db_session.commit()
+
+    engine_version_model_1 = EngineVersionModel(engine_version_1_1.id, model_1.id)
+    db_session.add(engine_version_model_1)
+    engine_version_model_2 = EngineVersionModel(engine_version_1_1.id, model_2.id)
+    db_session.add(engine_version_model_2)
+
+    engine_version_model_3 = EngineVersionModel(engine_version_2_1.id, model_1.id)
+    db_session.add(engine_version_model_3)
+    engine_version_model_4 = EngineVersionModel(engine_version_2_1.id, model_2.id)
+    db_session.add(engine_version_model_4)
+
+    engine_version_model_5 = EngineVersionModel(engine_version_1_2.id, model_1.id)
+    db_session.add(engine_version_model_5)
+    engine_version_model_6 = EngineVersionModel(engine_version_1_2.id, model_2.id)
+    db_session.add(engine_version_model_6)
 
     api_key = ApiKey('test_user', 'Owner of The Key', Permission.SUPER_USER)
     db_session.add(api_key)

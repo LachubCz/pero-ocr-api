@@ -11,9 +11,9 @@ from app.main import bp
 from app.db.api_key import require_user_api_key, require_super_user_api_key
 from app.wsgi import app
 from app.main.general import process_request, get_document_status, request_exists, cancel_request_by_id, \
-                             get_ocr_systems, get_page_by_id, check_save_path, get_page_by_preferred_engine, \
+                             get_engine_dict, get_page_by_id, check_save_path, get_page_by_preferred_engine, \
                              request_belongs_to_api_key, get_engine_version, get_engine_by_page_id, \
-                             change_page_to_processed, is_request_processed
+                             change_page_to_processed, is_page_processed, get_engine, get_latest_models
 
 
 @bp.route('/')
@@ -70,19 +70,19 @@ def request_status(request_id):
     )
 
 
-@bp.route('/ocr_systems', methods=['GET'])
+@bp.route('/get_engines', methods=['GET'])
 @require_user_api_key
-def ocr_systems():
-    ocr_systems = get_ocr_systems()
+def get_engines():
+    engines = get_engine_dict()
     return jsonify({
         'status': 'success',
-        'ocr_system': ocr_systems}
+        'engines': engines}
     )
 
 
-@bp.route('/download_results/<string:request_id>', methods=['GET'])
+@bp.route('/download_results/<string:request_id>/<string:name>/<string:format>', methods=['GET'])
 @require_user_api_key
-def download_results(request_id):
+def download_results(request_id, name, format):
     request_ = request_exists(request_id)
     if not request_:
         return jsonify({
@@ -92,24 +92,28 @@ def download_results(request_id):
         return jsonify({
             'status': 'failure'}
         )
-    if not is_request_processed(request_id):
+    page = is_page_processed(request_id, name)
+    if not page:
         return jsonify({
             'status': 'failure'}
         )
 
-    memory_file = BytesIO()
-    with zipfile.ZipFile(memory_file, 'w') as zf:
-        files = glob.glob(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id)) + '/*.xml')
-        for filename in files:
-            f = open(filename, "r")
-            content = f.read()
-            page = zipfile.ZipInfo(ntpath.basename(filename))
-            page.date_time = time.localtime(time.time())[:6]
-            page.compress_type = zipfile.ZIP_DEFLATED
-            zf.writestr(page, content)
-    memory_file.seek(0)
-
-    return send_file(memory_file, attachment_filename='pages.zip', as_attachment=True)
+    if format == 'alto':
+        return send_file(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), '{}_alto.xml'.format(page.name)),
+                         attachment_filename='{}.xml' .format(page.name),
+                         as_attachment=True)
+    elif format == 'xml':
+        return send_file(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), '{}.xml'.format(page.name)),
+                         attachment_filename='{}.xml'.format(page.name),
+                         as_attachment=True)
+    elif format == 'txt':
+        return send_file(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), '{}.txt'.format(page.name)),
+                         attachment_filename='{}.txt'.format(page.name),
+                         as_attachment=True)
+    else:
+        return jsonify({
+            'status': 'failure'}
+        )
 
 
 @bp.route('/cancel_request/<string:request_id>', methods=['POST'])
@@ -170,9 +174,38 @@ def upload_results(page_id):
     change_page_to_processed(page_id, score, engine_version.id)
     check_save_path(page.request_id)
 
-    file = request.files['data']
-    file.save(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), secure_filename(page.name + '.xml')))
+    file = request.files['alto']
+    file.save(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id),
+                           secure_filename(page.name + '_alto.xml')))
+    file = request.files['xml']
+    file.save(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id),
+                           secure_filename(page.name + '.xml')))
+    file = request.files['txt']
+    file.save(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id),
+                           secure_filename(page.name + '.txt')))
 
     return jsonify({
         'status': 'success'}
     )
+
+
+@bp.route('/download_engine/<int:engine_id>', methods=['GET'])
+@require_super_user_api_key
+def download_engine(engine_id):
+    engine = get_engine(engine_id)
+    if not engine:
+        return jsonify({
+            'status': 'failure'}
+        )
+    engine_version, models = get_latest_models(engine_id)
+
+    memory_file = BytesIO()
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for model in models:
+            for root, dirs, files in os.walk(model.path):
+                for file in files:
+                    zf.write(os.path.join(root, file), os.path.join(model.name, file))
+        zf.write(engine_version.config_path, 'config.ini')
+    memory_file.seek(0)
+
+    return send_file(memory_file, attachment_filename='{}#{}.zip'.format(engine.name, engine_version.version), as_attachment=True)

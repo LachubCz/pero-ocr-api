@@ -3,7 +3,7 @@ import datetime
 import sqlalchemy
 from sqlalchemy import func
 
-from app.db.model import Request, Engine, Page, PageState, ApiKey, EngineVersion
+from app.db.model import Request, Engine, Page, PageState, ApiKey, EngineVersion, Model, EngineVersionModel
 from app import db_session
 from app.wsgi import app
 
@@ -52,7 +52,7 @@ def cancel_request_by_id(request_id):
     db_session.commit()
 
 
-def get_ocr_systems():
+def get_engine_dict():
     engines = db_session.query(Engine).all()
     engines_dict = []
     for engine in engines:
@@ -136,3 +136,22 @@ def is_request_processed(request_id):
         return True
     else:
         return False
+
+
+def is_page_processed(request_id, name):
+    page = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.name == name).first()
+    return page
+
+
+def get_engine(engine_id):
+    engine = db_session.query(Engine).filter(Engine.id == engine_id).first()
+    return engine
+
+
+def get_latest_models(engine_id):
+    engine_versions = db_session.query(EngineVersion).filter(EngineVersion.engine_id == engine_id).all()
+    models = db_session.query(Model)\
+                       .outerjoin(EngineVersionModel)\
+                       .filter(EngineVersionModel.engine_version_id == engine_versions[-1].id)\
+                       .all()
+    return engine_versions[-1], models
