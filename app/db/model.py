@@ -37,7 +37,7 @@ class ApiKey(Base):
     __tablename__ = 'api_key'
     __table_args__ = {'extend_existing': True}
     id = Column(Integer(), primary_key=True)
-    api_string = Column(String(), nullable=False)
+    api_string = Column(String(), nullable=False, index=True)
     owner = Column(String(), nullable=False)
     permission = Column(Enum(Permission), nullable=False)
 
@@ -70,11 +70,11 @@ class Page(Base):
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(), nullable=False)
     url = Column(String(), nullable=False)
-    state = Column(Enum(PageState), nullable=False, default=PageState.WAITING)
+    state = Column(Enum(PageState), nullable=False, index=True, default=PageState.WAITING)
     score = Column(Float(), nullable=True)
     finish_timestamp = Column(DateTime(), nullable=True)
 
-    request_id = Column(GUID(), ForeignKey('request.id'), nullable=False)
+    request_id = Column(GUID(), ForeignKey('request.id'), nullable=False, index=True)
     engine_version = Column(Integer(), ForeignKey('engine_version.id'), nullable=True)
 
     def __init__(self, name, url, request_id):
