@@ -9,11 +9,12 @@ from flask import render_template, redirect, url_for, flash, request, jsonify, s
 from werkzeug.utils import secure_filename
 from app.main import bp
 from app.db.api_key import require_user_api_key, require_super_user_api_key
+from app.db.model import PageState
 from app.wsgi import app
 from app.main.general import process_request, get_document_status, request_exists, cancel_request_by_id, \
                              get_engine_dict, get_page_by_id, check_save_path, get_page_by_preferred_engine, \
                              request_belongs_to_api_key, get_engine_version, get_engine_by_page_id, \
-                             change_page_to_processed, is_page_processed, get_engine, get_latest_models
+                             change_page_to_processed, get_page_and_page_state, get_engine, get_latest_models
 
 
 @bp.route('/')
@@ -92,8 +93,12 @@ def download_results(request_id, name, format):
         return jsonify({
             'status': 'failure'}
         )
-    page = is_page_processed(request_id, name)
+    page, page_state = get_page_and_page_state(request_id, name)
     if not page:
+        return jsonify({
+            'status': 'failure'}
+        )
+    if page_state != PageState.PROCESSED:
         return jsonify({
             'status': 'failure'}
         )

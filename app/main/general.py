@@ -46,7 +46,10 @@ def get_document_status(request_id):
 
 
 def cancel_request_by_id(request_id):
-    waiting_pages = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.state != PageState.PROCESSED).all()
+    waiting_pages = db_session.query(Page).filter(Page.request_id == request_id)\
+                                          .filter(Page.state != PageState.PROCESSED)\
+                                          .filter(Page.state != PageState.FAILED)\
+                                          .all()
     for page in waiting_pages:
         page.state = PageState.CANCELED
     db_session.commit()
@@ -98,10 +101,7 @@ def get_engine_version(engine_id, version_name):
         .filter(EngineVersion.version == version_name)\
         .filter(EngineVersion.engine_id == engine_id)\
         .first()
-    if not engine_version:
-        engine_version = EngineVersion(version_name, engine_id)
-        db_session.add(engine_version)
-        db_session.commit()
+
     return engine_version
 
 
@@ -138,9 +138,14 @@ def is_request_processed(request_id):
         return False
 
 
-def is_page_processed(request_id, name):
-    page = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.name == name).first()
-    return page
+def get_page_and_page_state(request_id, name):
+    page = db_session.query(Page).filter(Page.request_id == request_id)\
+                                 .filter(Page.name == name)\
+                                 .first()
+    if page:
+        return page, page.state
+    else:
+        return None, None
 
 
 def get_engine(engine_id):

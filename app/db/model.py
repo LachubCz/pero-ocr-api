@@ -1,13 +1,14 @@
+import enum
+import uuid
 import datetime
 
-from app.db import Base
 from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, sessionmaker, relationship
 from sqlalchemy import Column, Enum, ForeignKey, Integer, String, DateTime, Float
+from sqlalchemy.ext.declarative import declarative_base
+Base = declarative_base()
+
 from app.db.guid import GUID
-import enum
-from sqlalchemy.orm import relationship
-import uuid
 
 
 class RequestState(enum.Enum):
@@ -35,7 +36,6 @@ class Permission(enum.Enum):
 
 class ApiKey(Base):
     __tablename__ = 'api_key'
-    __table_args__ = {'extend_existing': True}
     id = Column(Integer(), primary_key=True)
     api_string = Column(String(), nullable=False, index=True)
     owner = Column(String(), nullable=False)
@@ -49,7 +49,6 @@ class ApiKey(Base):
 
 class Request(Base):
     __tablename__ = 'request'
-    __table_args__ = {'extend_existing': True}
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     creation_timestamp = Column(DateTime(), nullable=False, default=datetime.datetime.utcnow)
     modification_timestamp = Column(DateTime(), nullable=False, default=datetime.datetime.utcnow)
@@ -57,6 +56,7 @@ class Request(Base):
 
     engine_id = Column(Integer(), ForeignKey('engine.id'), nullable=False)
     api_key_id = Column(Integer(), ForeignKey('api_key.id'), nullable=False)
+
     #pages = relationship('Page', back_populates="request", lazy='dynamic')
 
     def __init__(self, engine_id, api_key_id):
@@ -66,7 +66,6 @@ class Request(Base):
 
 class Page(Base):
     __tablename__ = 'page'
-    __table_args__ = {'extend_existing': True}
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(), nullable=False)
     url = Column(String(), nullable=False)
@@ -85,7 +84,6 @@ class Page(Base):
 
 class Engine(Base):
     __tablename__ = 'engine'
-    __table_args__ = {'extend_existing': True}
     id = Column(Integer(), primary_key=True)
     name = Column(String(), nullable=False)
     description = Column(String(), nullable=True)
@@ -100,7 +98,6 @@ class Engine(Base):
 
 class EngineVersion(Base):
     __tablename__ = 'engine_version'
-    __table_args__ = {'extend_existing': True}
     id = Column(Integer(), primary_key=True)
     version = Column(String(), nullable=False)
     config_path = Column(String(), nullable=False)
@@ -117,7 +114,6 @@ class EngineVersion(Base):
 
 class EngineVersionModel(Base):
     __tablename__ = 'engine_version_model'
-    __table_args__ = {'extend_existing': True}
     id = Column(Integer(), primary_key=True)
     engine_version_id = Column(Integer(), ForeignKey('engine_version.id'), nullable=False)
     model_id = Column(Integer(), ForeignKey('model.id'), nullable=False)
@@ -129,7 +125,6 @@ class EngineVersionModel(Base):
 
 class Model(Base):
     __tablename__ = 'model'
-    __table_args__ = {'extend_existing': True}
     id = Column(Integer(), primary_key=True)
     name = Column(String(), nullable=False)
     path = Column(String(), nullable=False)
