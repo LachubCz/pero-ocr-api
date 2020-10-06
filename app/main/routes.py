@@ -21,7 +21,7 @@ from app.main.general import process_request, get_document_status, request_exist
 @bp.route('/docs')
 @bp.route('/index')
 def index():
-    return render_template('documentation.html')
+    return redirect('https://app.swaggerhub.com/apis-docs/LachubCz/PERO-API/1.0.0#/')
 
 
 @bp.route('/post_processing_request', methods=['POST'])
@@ -81,9 +81,9 @@ def get_engines():
     )
 
 
-@bp.route('/download_results/<string:request_id>/<string:name>/<string:format>', methods=['GET'])
+@bp.route('/download_results/<string:request_id>/<string:page_name>/<string:format>', methods=['GET'])
 @require_user_api_key
-def download_results(request_id, name, format):
+def download_results(request_id, page_name, format):
     request_ = request_exists(request_id)
     if not request_:
         return jsonify({
@@ -93,7 +93,7 @@ def download_results(request_id, name, format):
         return jsonify({
             'status': 'failure'}
         )
-    page, page_state = get_page_and_page_state(request_id, name)
+    page, page_state = get_page_and_page_state(request_id, page_name)
     if not page:
         return jsonify({
             'status': 'failure'}
@@ -140,10 +140,10 @@ def cancel_request(request_id):
     )
 
 
-@bp.route('/get_processing_request/<int:preferred_engine>', methods=['GET'])
+@bp.route('/get_processing_request/<int:preferred_engine_id>', methods=['GET'])
 @require_super_user_api_key
-def get_processing_request(preferred_engine):
-    page, engine_id = get_page_by_preferred_engine(preferred_engine)
+def get_processing_request(preferred_engine_id):
+    page, engine_id = get_page_by_preferred_engine(preferred_engine_id)
 
     if page:
         return jsonify({
