@@ -5,8 +5,7 @@ import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker, relationship
 from sqlalchemy import Column, Enum, ForeignKey, Integer, String, DateTime, Float
-from sqlalchemy.ext.declarative import declarative_base
-Base = declarative_base()
+from app.db import Base
 
 from app.db.guid import GUID
 
