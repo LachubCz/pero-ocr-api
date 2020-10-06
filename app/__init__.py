@@ -5,6 +5,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from flask_bootstrap import Bootstrap
 from flask_jsglue import JSGlue
 from flask_dropzone import Dropzone
+from pathlib import Path
 
 from config import *
 from .db import Base
@@ -21,6 +22,7 @@ Base.query = db_session.query_property()
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    Path(app.config['PROCESSED_REQUESTS_FOLDER']).mkdir(parents=True, exist_ok=True)
     init_db()
     Bootstrap(app)
     Dropzone(app)
