@@ -5,7 +5,7 @@ from sqlalchemy import func
 
 from app.db.model import Request, Engine, Page, PageState, ApiKey, EngineVersion, Model, EngineVersionModel
 from app import db_session
-from app.wsgi import app
+from flask import current_app as app
 
 
 def request_exists(request_id):
