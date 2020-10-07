@@ -21,7 +21,7 @@ def request_exists(request_id):
 
 
 def process_request(api_string, json_request):
-    engine = db_session.query(Engine).filter(Engine.id == int(json_request["configuration"])).first()
+    engine = db_session.query(Engine).filter(Engine.id == int(json_request["engine"])).first()
     api_key = db_session.query(ApiKey).filter(ApiKey.api_string == api_string).first()
     if engine is not None:
         request = Request(engine.id, api_key.id)
@@ -57,9 +57,9 @@ def cancel_request_by_id(request_id):
 
 def get_engine_dict():
     engines = db_session.query(Engine).all()
-    engines_dict = []
+    engines_dict = dict()
     for engine in engines:
-        engines_dict.append({'id': engine.id, 'name': engine.name, 'description': engine.description})
+        engines_dict[engine.name] = {'id': engine.id, 'description': engine.description}
 
     return engines_dict
 
@@ -160,3 +160,8 @@ def get_latest_models(engine_id):
                        .filter(EngineVersionModel.engine_version_id == engine_versions[-1].id)\
                        .all()
     return engine_versions[-1], models
+
+
+def get_document_pages(request_id):
+    pages = db_session.query(Page).filter(Page.request_id == request_id).all()
+    return pages
