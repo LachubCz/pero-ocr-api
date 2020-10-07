@@ -23,7 +23,9 @@ class PageState(enum.Enum):
     CREATED = 'Page was created.'
     WAITING = 'Page is waiting for processing.'
     PROCESSING = 'Page is being processed.'
-    FAILED = 'Page processing failed.'
+    NOT_FOUND = 'Page image was not found.'
+    INVALID_FILE = 'Page image is invalid.'
+    PROCESSING_FAILED = 'Page processing failed.'
     PROCESSED = 'Page was processed.'
     CANCELED = 'Page processing was canceled.'
 

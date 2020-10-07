@@ -48,7 +48,9 @@ def get_document_status(request_id):
 def cancel_request_by_id(request_id):
     waiting_pages = db_session.query(Page).filter(Page.request_id == request_id)\
                                           .filter(Page.state != PageState.PROCESSED)\
-                                          .filter(Page.state != PageState.FAILED)\
+                                          .filter(Page.state != PageState.NOT_FOUND)\
+                                          .filter(Page.state != PageState.INVALID_FILE) \
+                                          .filter(Page.state != PageState.PROCESSING_FAILED)\
                                           .all()
     for page in waiting_pages:
         page.state = PageState.CANCELED
