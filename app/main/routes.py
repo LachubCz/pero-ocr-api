@@ -12,7 +12,7 @@ from app.main.general import process_request, request_exists, cancel_request_by_
                              get_engine_dict, get_page_by_id, check_save_path, get_page_by_preferred_engine, \
                              request_belongs_to_api_key, get_engine_version, get_engine_by_page_id, \
                              change_page_to_processed, get_page_and_page_state, get_engine, get_latest_models, \
-                             get_document_pages
+                             get_document_pages, change_page_to_failed
 
 
 @bp.route('/')
@@ -204,3 +204,19 @@ def download_engine(engine_id):
     memory_file.seek(0)
 
     return send_file(memory_file, attachment_filename='{}#{}.zip'.format(engine.name, engine_version.version), as_attachment=True)
+
+
+@bp.route('/failed_processing/<string:page_id>', methods=['POST'])
+@require_super_user_api_key
+def report_failed_processing(page_id):
+    fail_type = str(request.headers.get('type'))
+    traceback = str(request.data)
+    engine_version_str = str(request.headers.get('engine_version'))
+
+    engine = get_engine_by_page_id(page_id)
+    engine_version = get_engine_version(engine.id, engine_version_str)
+
+    change_page_to_failed(page_id, fail_type, traceback, engine_version.id)
+
+    return jsonify({
+        'status': 'success'}), 200

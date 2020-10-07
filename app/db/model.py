@@ -72,6 +72,7 @@ class Page(Base):
     url = Column(String(), nullable=False)
     state = Column(Enum(PageState), nullable=False, index=True, default=PageState.WAITING)
     score = Column(Float(), nullable=True)
+    traceback = Column(String(), nullable=True)
     finish_timestamp = Column(DateTime(), nullable=True)
 
     request_id = Column(GUID(), ForeignKey('request.id'), nullable=False, index=True)
@@ -107,10 +108,11 @@ class EngineVersion(Base):
 
     #pages = relationship('Page', back_populates="engine_version", lazy='dynamic')
 
-    def __init__(self, version, config_path, engine_id):
+    def __init__(self, version, config_path, engine_id, description=None):
         self.version = version
         self.config_path = config_path
         self.engine_id = engine_id
+        self.description = description
 
 
 class EngineVersionModel(Base):

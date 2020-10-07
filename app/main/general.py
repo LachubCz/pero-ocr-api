@@ -132,6 +132,28 @@ def change_page_to_processed(page_id, score, engine_version):
         db_session.commit()
 
 
+def change_page_to_failed(page_id, fail_type, traceback, engine_version):
+    page = db_session.query(Page).filter(Page.id == page_id).first()
+    request = db_session.query(Request).filter(Request.id == page.request_id).first()
+
+    if fail_type == 'NOT_FOUND':
+        page.state = PageState.NOT_FOUND
+    elif fail_type == 'INVALID_FILE':
+        page.state = PageState.INVALID_FILE
+    elif fail_type == 'PROCESSING_FAILED':
+        page.state = PageState.PROCESSING_FAILED
+    page.traceback = traceback
+    page.engine_version = engine_version
+
+    timestamp = datetime.datetime.utcnow()
+    page.finish_timestamp = timestamp
+    request.modification_timestamp = timestamp
+    db_session.commit()
+    if is_request_processed(request.id):
+        request.finish_timestamp = timestamp
+        db_session.commit()
+
+
 def is_request_processed(request_id):
     status, _ = get_document_status(request_id)
     if status == 1.0:

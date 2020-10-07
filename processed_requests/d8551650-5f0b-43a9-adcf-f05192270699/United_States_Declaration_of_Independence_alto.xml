@@ -1,0 +1,27 @@
+<alto xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.loc.gov/standards/alto/ns-v2#">
+  <Description>
+    <MeasurementUnit>pixel</MeasurementUnit>
+    <sourceImageInformation>
+      <fileName>83baa422-6f04-4e7a-ba9c-247f340bdf9c</fileName>
+    </sourceImageInformation>
+    <OCRProcessing ID="IdOcr">
+      <ocrProcessingStep>
+        <processingDateTime>2020-10-07</processingDateTime>
+        <processingSoftware>
+          <softwareCreator>Project PERO</softwareCreator>
+          <softwareName>Engine_2</softwareName>
+          <softwareVersion>v0.0.1</softwareVersion>
+        </processingSoftware>
+      </ocrProcessingStep>
+    </OCRProcessing>
+  </Description>
+  <Layout>
+    <Page ID="id_83baa422-6f04-4e7a-ba9c-247f340bdf9c" PHYSICAL_IMG_NR="1" HEIGHT="4656" WIDTH="3923">
+      <TopMargin HEIGHT="4656" WIDTH="3923" VPOS="0" HPOS="0"/>
+      <LeftMargin HEIGHT="4656" WIDTH="3923" VPOS="0" HPOS="0"/>
+      <RightMargin HEIGHT="4656" WIDTH="0" VPOS="0" HPOS="3923"/>
+      <BottomMargin HEIGHT="0" WIDTH="3923" VPOS="4656" HPOS="0"/>
+      <PrintSpace HEIGHT="0" WIDTH="0" VPOS="4656" HPOS="3923"/>
+    </Page>
+  </Layout>
+</alto>

@@ -5,6 +5,7 @@ import time
 import zipfile
 import requests
 import argparse
+import traceback
 import configparser
 import urllib.request
 
@@ -100,40 +101,72 @@ def main():
                             headers=headers)
             request = r.json()
             status = request['status']
-            page_id = request['page_id']
-            page_url = request['page_url']
-            engine_id = request['engine_id']
 
             if status == 'success':
+                page_id = request['page_id']
+                page_url = request['page_url']
+                engine_id = request['engine_id']
                 if engine_id != int(config['SETTINGS']['preferred_engine']):
                     page_parser, engine_name, engine_version = get_engine(config, headers, engine_id)
                     config['SETTINGS']['preferred_engine'] = str(engine_id)
 
-                page = urllib.request.urlopen(page_url).read()
-                stream = io.BytesIO(page)
-                pil_image = Image.open(stream)
+                try:
+                    page = urllib.request.urlopen(page_url).read()
+                except:
+                    exception = traceback.format_exc()
+                    headers = {'api-key': config['SETTINGS']['api_key'],
+                               'type': 'NOT_FOUND',
+                               'engine-version': engine_version}
+                    session.post(
+                        join_url(config['SERVER']['base_url'], config['SERVER']['post_failed_processing'], page_id),
+                        data=exception,
+                        headers=headers)
+                    continue
+                try:
+                    stream = io.BytesIO(page)
+                    pil_image = Image.open(stream)
+                except:
+                    exception = traceback.format_exc()
+                    headers = {'api-key': config['SETTINGS']['api_key'],
+                               'type': 'INVALID_FILE',
+                               'engine-version': engine_version}
+                    session.post(
+                        join_url(config['SERVER']['base_url'], config['SERVER']['post_failed_processing'], page_id),
+                        data=exception,
+                        headers=headers)
+                    continue
+                try:
+                    open_cv_image = np.array(pil_image)
+                    open_cv_image = open_cv_image[:, :, ::-1].copy()
 
-                open_cv_image = np.array(pil_image)
-                open_cv_image = open_cv_image[:, :, ::-1].copy()
+                    page_layout = PageLayout(id=page_id, page_size=(pil_image.size[1], pil_image.size[0]))
+                    page_layout = page_parser.process_page(open_cv_image, page_layout)
 
-                page_layout = PageLayout(id=page_id, page_size=(pil_image.size[1], pil_image.size[0]))
-                page_layout = page_parser.process_page(open_cv_image, page_layout)
+                    headers = {'api-key': config['SETTINGS']['api_key'],
+                               'engine-version': engine_version,
+                               'score': '100'}
 
-                headers = {'api-key': config['SETTINGS']['api_key'],
-                           'engine-version': engine_version,
-                           'score': '100'}
-
-                ocr_processing = create_ocr_processing_element(id="IdOcr",
-                                                               software_creator_str="Project PERO",
-                                                               software_name_str="{}" .format(engine_name),
-                                                               software_version_str="{}" .format(engine_version),
-                                                               processing_datetime=None)
-
-                session.post(join_url(config['SERVER']['base_url'], config['SERVER']['post_upload_results'], page_id),
-                             files={'alto': ('{}_alto.xml' .format(page_id), page_layout.to_altoxml_string(ocr_processing=ocr_processing), 'text/plain'),
-                                    'xml': ('{}.xml' .format(page_id), page_layout.to_pagexml_string(), 'text/plain'),
-                                    'txt': ('{}.txt' .format(page_id), get_page_layout_text(page_layout), 'text/plain')},
-                             headers=headers)
+                    ocr_processing = create_ocr_processing_element(id="IdOcr",
+                                                                   software_creator_str="Project PERO",
+                                                                   software_name_str="{}" .format(engine_name),
+                                                                   software_version_str="{}" .format(engine_version),
+                                                                   processing_datetime=None)
+                except:
+                    exception = traceback.format_exc()
+                    headers = {'api-key': config['SETTINGS']['api_key'],
+                               'type': 'PROCESSING_FAILED',
+                               'engine-version': engine_version}
+                    session.post(
+                        join_url(config['SERVER']['base_url'], config['SERVER']['post_failed_processing'], page_id),
+                        data=exception,
+                        headers=headers)
+                    continue
+                else:
+                    session.post(join_url(config['SERVER']['base_url'], config['SERVER']['post_upload_results'], page_id),
+                                 files={'alto': ('{}_alto.xml' .format(page_id), page_layout.to_altoxml_string(ocr_processing=ocr_processing), 'text/plain'),
+                                        'xml': ('{}.xml' .format(page_id), page_layout.to_pagexml_string(), 'text/plain'),
+                                        'txt': ('{}.txt' .format(page_id), get_page_layout_text(page_layout), 'text/plain')},
+                                 headers=headers)
             else:
                 time.sleep(10)
 
