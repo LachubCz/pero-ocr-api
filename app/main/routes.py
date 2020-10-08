@@ -27,10 +27,7 @@ def index():
 def post_processing_request():
     api_string = request.headers.get('api-key')
     try:
-        file = request.files['data']
-        content = file.read()
-        json_content = json.loads(content)
-        db_request = process_request(api_string, json_content)
+        db_request = process_request(api_string, request.json)
     except:
         return jsonify({
             'status': 'failure',
