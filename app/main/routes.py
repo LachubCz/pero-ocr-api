@@ -194,13 +194,34 @@ def download_engine(engine_id):
             'message': 'Engine not found.'}), 404
     engine_version, models = get_latest_models(engine_id)
 
+    if len(models) == 2:
+        engine_config = ('[PAGE_PARSER]\n'
+                         'RUN_LAYOUT_PARSER = yes\n'
+                         'RUN_LINE_CROPPER = yes\n'
+                         'RUN_OCR = yes\n'
+                         'RUN_DECODER = no\n'
+                         '\n')
+    elif len(models) == 3:
+        engine_config = ('[PAGE_PARSER]\n'
+                         'RUN_LAYOUT_PARSER = yes\n'
+                         'RUN_LINE_CROPPER = yes\n'
+                         'RUN_OCR = yes\n'
+                         'RUN_DECODER = yes\n'
+                         '\n')
+    else:
+        if not engine:
+            return jsonify({
+                'status': 'failure',
+                'message': 'Too many models for engine.'}), 500
+
     memory_file = BytesIO()
     with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
         for model in models:
-            for root, dirs, files in os.walk(model.path):
+            for root, dirs, files in os.walk(os.path.join(app.config['MODELS_FOLDER'], model.name)):
                 for file in files:
                     zf.write(os.path.join(root, file), os.path.join(model.name, file))
-        zf.write(engine_version.config_path, 'config.ini')
+            engine_config += model.config
+        zf.writestr('config.ini', engine_config)
     memory_file.seek(0)
 
     return send_file(memory_file, attachment_filename='{}#{}.zip'.format(engine.name, engine_version.version), as_attachment=True)

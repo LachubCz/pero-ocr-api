@@ -58,8 +58,6 @@ class Request(Base):
     engine_id = Column(Integer(), ForeignKey('engine.id'), nullable=False)
     api_key_id = Column(Integer(), ForeignKey('api_key.id'), nullable=False)
 
-    #pages = relationship('Page', back_populates="request", lazy='dynamic')
-
     def __init__(self, engine_id, api_key_id):
         self.engine_id = engine_id
         self.api_key_id = api_key_id
@@ -90,9 +88,6 @@ class Engine(Base):
     name = Column(String(), nullable=False)
     description = Column(String(), nullable=True)
 
-    #versions = relationship('EngineVersion', back_populates="engine", lazy='dynamic')
-    #requests = relationship('Request', back_populates="engine", lazy='dynamic')
-
     def __init__(self, name, description):
         self.name = name
         self.description = description
@@ -102,15 +97,11 @@ class EngineVersion(Base):
     __tablename__ = 'engine_version'
     id = Column(Integer(), primary_key=True)
     version = Column(String(), nullable=False)
-    config_path = Column(String(), nullable=False)
     description = Column(String(), nullable=True)
     engine_id = Column(Integer(), ForeignKey('engine.id'), nullable=False)
 
-    #pages = relationship('Page', back_populates="engine_version", lazy='dynamic')
-
-    def __init__(self, version, config_path, engine_id, description=None):
+    def __init__(self, version, engine_id, description=None):
         self.version = version
-        self.config_path = config_path
         self.engine_id = engine_id
         self.description = description
 
@@ -130,11 +121,11 @@ class Model(Base):
     __tablename__ = 'model'
     id = Column(Integer(), primary_key=True)
     name = Column(String(), nullable=False)
-    path = Column(String(), nullable=False)
+    config = Column(String(), nullable=False)
 
-    def __init__(self, name, path):
+    def __init__(self, name, config):
         self.name = name
-        self.path = path
+        self.config = config
 
 
 if __name__ == '__main__':
@@ -153,7 +144,7 @@ if __name__ == '__main__':
     db_session.add(engine_1)
     db_session.commit()
 
-    engine_version_1_1 = EngineVersion('v0.0.1', 'C:\\Users\\LachubCz_NTB\\Documents\\GitHub\\PERO-API\\processing_client\\engines\\example_config.ini', engine_1.id)
+    engine_version_1_1 = EngineVersion('v0.0.1', engine_1.id)
     db_session.add(engine_version_1_1)
     db_session.commit()
 
@@ -161,19 +152,42 @@ if __name__ == '__main__':
     db_session.add(engine_2)
     db_session.commit()
 
-    engine_version_2_1 = EngineVersion('v0.0.1', 'C:\\Users\\LachubCz_NTB\\Documents\\GitHub\\PERO-API\\processing_client\\engines\\example_config.ini', engine_2.id)
+    engine_version_2_1 = EngineVersion('v0.0.1', engine_2.id)
     db_session.add(engine_version_2_1)
     db_session.commit()
 
-    engine_version_1_2 = EngineVersion('v0.0.2', 'C:\\Users\\LachubCz_NTB\\Documents\\GitHub\\PERO-API\\processing_client\\engines\\example_config.ini', engine_1.id)
+    engine_version_1_2 = EngineVersion('v0.0.2', engine_1.id)
     db_session.add(engine_version_1_2)
     db_session.commit()
 
-    model_1 = Model('lidove_noviny', 'C:/Users/LachubCz_NTB/Documents/GitHub/PERO-API/models/lidove_noviny/model/')
+    model_1 = Model('lidove_noviny',
+                    ('[LINE_CROPPER]\n'
+                     'INTERP = 2\n'
+                     'LINE_SCALE = 1\n'
+                     'LINE_HEIGHT = 40\n'
+                     '\n'
+                     '[OCR]\n'
+                     'METHOD = pytorch_ocr\n'
+                     'OCR_JSON = ./lidove_noviny/ocr_engine.json\n'))
     db_session.add(model_1)
     db_session.commit()
 
-    model_2 = Model('universal', 'C:/Users/LachubCz_NTB/Documents/GitHub/PERO-API/models/universal/model/')
+    model_2 = Model('universal',
+                    ('[LAYOUT_PARSER]\n'
+                    'METHOD = LAYOUT_CNN\n'
+                    'MODEL_PATH = ./universal/ParseNet_exported\n'
+                    'USE_CPU = yes\n'
+                    '\n'
+                    'DETECT_LINES = yes\n'
+                    'DETECT_REGIONS = no\n'
+                    'MERGE_LINES = no\n'
+                    'ADJUST_HEIGHTS = no\n'
+                    '\n'
+                    'MAX_MEGAPIXELS = 5\n'
+                    'GPU_FRACTION = 0.5\n'
+                    'DOWNSAMPLE = 4\n'
+                    'PAD = 52\n'
+                    'DETECTION_THRESHOLD = 0.2\n'))
     db_session.add(model_2)
     db_session.commit()
 
@@ -200,9 +214,9 @@ if __name__ == '__main__':
     db_session.add(request)
     db_session.commit()
 
-    page1 = Page('Magna_Carta', 'https://upload.wikimedia.org/wikipedia/commons/e/ee/Magna_Carta_%28British_Library_Cotton_MS_Augustus_II.106%29.jpg', request.id)
+    page1 = Page('Magna_Carta', 'https://upload.wikimedia.org/wikipedia/commons/e/ee/Magna_Carta_%28Brwitish_Library_Cotton_MS_Augustus_II.106%29.jpg', request.id)
     db_session.add(page1)
-    page2 = Page('United_States_Declaration_of_Independence', 'https://upload.wikimedia.org/wikipedia/commons/8/8f/United_States_Declaration_of_Independence.jpg', request.id)
+    page2 = Page('United_States_Declaration_of_Independence', 'https://upload.wikimedia.org/wikipedia/commons/8/8f/Unitedw_States_Declaration_of_Independence.jpg', request.id)
     db_session.add(page2)
     db_session.commit()
 
@@ -214,7 +228,7 @@ if __name__ == '__main__':
     db_session.add(request)
     db_session.commit()
 
-    page1 = Page('Magna_Carta', 'https://upload.wikimedia.org/wikipedia/commons/e/ee/Magna_Carta_%28British_Library_Cotton_MS_Augustus_II.106%29.jpg', request.id)
+    page1 = Page('Magna_Carta', 'https://raw.githubusercontent.com/LachubCz/PERO-API/d7c6442c455c83ed2d84141f1caef50d18064e1d/processing_client/engines/example_config.ini?token=AELVMCLUF2E224H2U6FLJD27Q4MGE', request.id)
     db_session.add(page1)
     page2 = Page('United_States_Declaration_of_Independence', 'https://upload.wikimedia.org/wikipedia/commons/8/8f/United_States_Declaration_of_Independence.jpg', request.id)
     db_session.add(page2)
