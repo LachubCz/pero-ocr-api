@@ -13,8 +13,9 @@ def get_args():
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--owner", action="store", dest="owner")
-    parser.add_argument("--permission", action="store", dest="permission", choices=['USER', 'SUPER_USER'])
+    parser.add_argument("--owner", required=True)
+    parser.add_argument("--database", required=True)
+    parser.add_argument("--permission", default='USER', choices=['USER', 'SUPER_USER'])
 
     args = parser.parse_args()
 
@@ -39,7 +40,7 @@ if __name__ == '__main__':
     elif args.permission == 'SUPER_USER':
         permission = Permission.SUPER_USER
 
-    engine = create_engine('sqlite:///C:/Users/LachubCz_NTB/Documents/GitHub/PERO-API/app/{}'.format('database.db'),
+    engine = create_engine(f'sqlite:///{args.database}',
                            convert_unicode=True,
                            connect_args={'check_same_thread': False})
     db_session = scoped_session(sessionmaker(autocommit=False,
