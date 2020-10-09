@@ -60,7 +60,7 @@ def request_status(request_id):
 
     return jsonify({
         'status': 'success',
-        'request_status': {page.name: {'state': str(page.state.split('.')[1]), 'quality': page.score} for page in pages}}), 200
+        'request_status': {page.name: {'state': str(page.state).split('.')[1], 'quality': page.score} for page in pages}}), 200
 
 
 @bp.route('/get_engines', methods=['GET'])
