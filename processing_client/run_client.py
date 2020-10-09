@@ -110,6 +110,7 @@ def main():
                     page_parser, engine_name, engine_version = get_engine(config, headers, engine_id)
                     config['SETTINGS']['preferred_engine'] = str(engine_id)
 
+                # Download image from url.
                 try:
                     page = urllib.request.urlopen(page_url).read()
                 except:
@@ -122,6 +123,9 @@ def main():
                         data=exception,
                         headers=headers)
                     continue
+
+
+                # Decode image
                 try:
                     stream = io.BytesIO(page)
                     pil_image = Image.open(stream)
@@ -135,6 +139,8 @@ def main():
                         data=exception,
                         headers=headers)
                     continue
+
+                # Process image
                 try:
                     open_cv_image = np.array(pil_image)
                     open_cv_image = open_cv_image[:, :, ::-1].copy()
