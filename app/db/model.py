@@ -51,9 +51,9 @@ class ApiKey(Base):
 class Request(Base):
     __tablename__ = 'request'
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    creation_timestamp = Column(DateTime(), nullable=False, default=datetime.datetime.utcnow)
-    modification_timestamp = Column(DateTime(), nullable=False, default=datetime.datetime.utcnow)
-    finish_timestamp = Column(DateTime(), nullable=True)
+    creation_timestamp = Column(DateTime(), nullable=False, index=True, default=datetime.datetime.utcnow)
+    modification_timestamp = Column(DateTime(), nullable=False, index=True, default=datetime.datetime.utcnow)
+    finish_timestamp = Column(DateTime(), nullable=True, index=True)
 
     engine_id = Column(Integer(), ForeignKey('engine.id'), nullable=False)
     api_key_id = Column(Integer(), ForeignKey('api_key.id'), nullable=False)
@@ -69,9 +69,9 @@ class Page(Base):
     name = Column(String(), nullable=False)
     url = Column(String(), nullable=False)
     state = Column(Enum(PageState), nullable=False, index=True, default=PageState.WAITING)
-    score = Column(Float(), nullable=True)
+    score = Column(Float(), nullable=True, index=True)
     traceback = Column(String(), nullable=True)
-    finish_timestamp = Column(DateTime(), nullable=True)
+    finish_timestamp = Column(DateTime(), nullable=True, index=True)
 
     request_id = Column(GUID(), ForeignKey('request.id'), nullable=False, index=True)
     engine_version = Column(Integer(), ForeignKey('engine_version.id'), nullable=True)

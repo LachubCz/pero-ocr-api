@@ -2,8 +2,9 @@ import os
 import datetime
 import sqlalchemy
 from sqlalchemy import func
+from collections import defaultdict
 
-from app.db.model import Request, Engine, Page, PageState, ApiKey, EngineVersion, Model, EngineVersionModel
+from app.db.model import Request, Engine, Page, PageState, ApiKey, EngineVersion, Model, EngineVersionModel, PageState
 from app import db_session
 from flask import current_app as app
 
@@ -113,6 +114,17 @@ def get_engine_by_page_id(page_id):
     engine = db_session.query(Engine).filter(Engine.id == request.engine_id).first()
 
     return engine
+
+
+def get_page_statistics(history_hours=80):
+    from_datetime = datetime.datetime.utcnow() - datetime.timedelta(hours=history_hours)
+    finished_pages = db_session.query(Page).filter(Page.finish_timestamp > from_datetime).all()
+    unfinished_pages = db_session.query(Page).filter(Page.finish_timestamp == None).all()
+    stats = {state.name: 0 for state in PageState}
+    for page_db in finished_pages + unfinished_pages:
+        stats[page_db.state.name] += 1
+
+    return stats
 
 
 def change_page_to_processed(page_id, score, engine_version):

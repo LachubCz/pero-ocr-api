@@ -12,7 +12,7 @@ from app.main.general import process_request, request_exists, cancel_request_by_
                              get_engine_dict, get_page_by_id, check_save_path, get_page_by_preferred_engine, \
                              request_belongs_to_api_key, get_engine_version, get_engine_by_page_id, \
                              change_page_to_processed, get_page_and_page_state, get_engine, get_latest_models, \
-                             get_document_pages, change_page_to_failed
+                             get_document_pages, change_page_to_failed, get_page_statistics
 
 
 @bp.route('/')
@@ -238,3 +238,13 @@ def report_failed_processing(page_id):
 
     return jsonify({
         'status': 'success'}), 200
+
+
+@bp.route('/page_statistics', methods=['GET'])
+@require_super_user_api_key
+def page_statistics():
+    page_stats = get_page_statistics()
+
+    return jsonify({
+        'status': 'success',
+        'stats': page_stats}), 200
