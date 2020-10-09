@@ -10,7 +10,7 @@ import configparser
 import urllib.request
 
 import numpy as np
-import PIL.Image as Image
+import cv2
 
 from pero_ocr.document_ocr.page_parser import PageParser
 from pero_ocr.document_ocr.layout import PageLayout, create_ocr_processing_element
@@ -22,9 +22,11 @@ def get_args():
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-c", "--config", action="store", dest="config", help="Config path.")
-    parser.add_argument("-a", "--api-key", action="store", dest="api", help="API key.")
-    parser.add_argument("-e", "--preferred-engine", action="store", dest="engine", help="Preferred engine ID.")
+    parser.add_argument("-c", "--config", help="Config path.")
+    parser.add_argument("-a", "--api-key", help="API key.")
+    parser.add_argument("-e", "--preferred-engine", dest="engine", help="Preferred engine ID.")
+    parser.add_argument("--exit-on-done", action="store_true", help="Exit when no more data from server.")
+    parser.add_argument("--time-limit", default=-1, type=float, help="Exit when runing longer than time-limit hours.")
 
     args = parser.parse_args()
 
@@ -78,14 +80,16 @@ def get_page_layout_text(page_layout):
 def main():
     args = get_args()
 
+    start_time = time.time()
+
     config = configparser.ConfigParser()
     if args.config is not None:
         config.read(args.config)
     else:
         config.read('config.ini')
 
-    if args.api is not None:
-        config["SETTINGS"]['api_key'] = args.api
+    if args.api_key is not None:
+        config["SETTINGS"]['api_key'] = args.api_key
 
     if args.engine is not None:
         config["SETTINGS"]['preferred_engine'] = args.preferred_engine
@@ -95,6 +99,9 @@ def main():
         page_parser, engine_name, engine_version = get_engine(config, headers, config["SETTINGS"]['preferred_engine'])
 
         while True:
+            if args.time_limit > 0 and args.time_limit * 3600 < time.time() - start_time:
+                break
+
             r = session.get(join_url(config['SERVER']['base_url'],
                                      config['SERVER']['get_processing_request'],
                                      config['SETTINGS']['preferred_engine']),
@@ -115,6 +122,7 @@ def main():
                     page = urllib.request.urlopen(page_url).read()
                 except:
                     exception = traceback.format_exc()
+                    print(exception)
                     headers = {'api-key': config['SETTINGS']['api_key'],
                                'type': 'NOT_FOUND',
                                'engine-version': engine_version}
@@ -127,10 +135,13 @@ def main():
 
                 # Decode image
                 try:
-                    stream = io.BytesIO(page)
-                    pil_image = Image.open(stream)
+                    encoded_img = np.frombuffer(page, dtype=np.uint8)
+                    image = cv2.imdecode(encoded_img, flags=cv2.IMREAD_ANYCOLOR)
+                    if len(image.shape) == 2:
+                        image = np.stack([image, image, image], axis=2)
                 except:
                     exception = traceback.format_exc()
+                    print(exception)
                     headers = {'api-key': config['SETTINGS']['api_key'],
                                'type': 'INVALID_FILE',
                                'engine-version': engine_version}
@@ -142,11 +153,8 @@ def main():
 
                 # Process image
                 try:
-                    open_cv_image = np.array(pil_image)
-                    open_cv_image = open_cv_image[:, :, ::-1].copy()
-
-                    page_layout = PageLayout(id=page_id, page_size=(pil_image.size[1], pil_image.size[0]))
-                    page_layout = page_parser.process_page(open_cv_image, page_layout)
+                    page_layout = PageLayout(id=page_id, page_size=(image.shape[1], image.shape[0]))
+                    page_layout = page_parser.process_page(image, page_layout)
 
                     headers = {'api-key': config['SETTINGS']['api_key'],
                                'engine-version': engine_version,
@@ -159,6 +167,7 @@ def main():
                                                                    processing_datetime=None)
                 except:
                     exception = traceback.format_exc()
+                    print(exception)
                     headers = {'api-key': config['SETTINGS']['api_key'],
                                'type': 'PROCESSING_FAILED',
                                'engine-version': engine_version}
@@ -174,6 +183,8 @@ def main():
                                         'txt': ('{}.txt' .format(page_id), get_page_layout_text(page_layout), 'text/plain')},
                                  headers=headers)
             else:
+                if args.exit_on_done:
+                    break
                 time.sleep(10)
 
 
