@@ -197,14 +197,14 @@ def download_engine(engine_id):
                          'RUN_LINE_CROPPER = yes\n'
                          'RUN_OCR = yes\n'
                          'RUN_DECODER = no\n'
-                         '\n')
+                         '\n\n')
     elif len(models) == 3:
         engine_config = ('[PAGE_PARSER]\n'
                          'RUN_LAYOUT_PARSER = yes\n'
                          'RUN_LINE_CROPPER = yes\n'
                          'RUN_OCR = yes\n'
                          'RUN_DECODER = yes\n'
-                         '\n')
+                         '\n\n')
     else:
         if not engine:
             return jsonify({
@@ -217,7 +217,7 @@ def download_engine(engine_id):
             for root, dirs, files in os.walk(os.path.join(app.config['MODELS_FOLDER'], model.name)):
                 for file in files:
                     zf.write(os.path.join(root, file), os.path.join(model.name, file))
-            engine_config += model.config
+            engine_config += model.config + '\n\n'
         zf.writestr('config.ini', engine_config)
     memory_file.seek(0)
 
