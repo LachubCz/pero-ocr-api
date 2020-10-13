@@ -102,12 +102,16 @@ def main():
             if args.time_limit > 0 and args.time_limit * 3600 < time.time() - start_time:
                 break
 
-            r = session.get(join_url(config['SERVER']['base_url'],
-                                     config['SERVER']['get_processing_request'],
-                                     config['SETTINGS']['preferred_engine']),
-                            headers=headers)
-            request = r.json()
-            status = request['status']
+            try:
+                r = session.get(join_url(config['SERVER']['base_url'],
+                                         config['SERVER']['get_processing_request'],
+                                         config['SETTINGS']['preferred_engine']),
+                                headers=headers)
+            except requests.exceptions.ConnectionError:
+                status = 'failed'
+            else:
+                request = r.json()
+                status = request['status']
 
             if status == 'success':
                 page_id = request['page_id']
@@ -122,7 +126,6 @@ def main():
                     page = urllib.request.urlopen(page_url).read()
                 except:
                     exception = traceback.format_exc()
-                    print(exception)
                     headers = {'api-key': config['SETTINGS']['api_key'],
                                'type': 'NOT_FOUND',
                                'engine-version': engine_version}
@@ -141,7 +144,6 @@ def main():
                         image = np.stack([image, image, image], axis=2)
                 except:
                     exception = traceback.format_exc()
-                    print(exception)
                     headers = {'api-key': config['SETTINGS']['api_key'],
                                'type': 'INVALID_FILE',
                                'engine-version': engine_version}
@@ -167,7 +169,6 @@ def main():
                                                                    processing_datetime=None)
                 except:
                     exception = traceback.format_exc()
-                    print(exception)
                     headers = {'api-key': config['SETTINGS']['api_key'],
                                'type': 'PROCESSING_FAILED',
                                'engine-version': engine_version}
