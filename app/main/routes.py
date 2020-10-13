@@ -99,8 +99,8 @@ def download_results(request_id, page_name, format):
         return send_file(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), '{}_alto.xml'.format(page.name)),
                          attachment_filename='{}.xml' .format(page.name),
                          as_attachment=True)
-    elif format == 'xml':
-        return send_file(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), '{}.xml'.format(page.name)),
+    elif format == 'page':
+        return send_file(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), '{}_page.xml'.format(page.name)),
                          attachment_filename='{}.xml'.format(page.name),
                          as_attachment=True)
     elif format == 'txt':
@@ -168,9 +168,9 @@ def upload_results(page_id):
     file = request.files['alto']
     file.save(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id),
                            secure_filename(page.name + '_alto.xml')))
-    file = request.files['xml']
+    file = request.files['page']
     file.save(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id),
-                           secure_filename(page.name + '.xml')))
+                           secure_filename(page.name + '_page.xml')))
     file = request.files['txt']
     file.save(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id),
                            secure_filename(page.name + '.txt')))

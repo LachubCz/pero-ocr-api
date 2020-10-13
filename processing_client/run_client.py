@@ -179,7 +179,7 @@ def main():
                 else:
                     session.post(join_url(config['SERVER']['base_url'], config['SERVER']['post_upload_results'], page_id),
                                  files={'alto': ('{}_alto.xml' .format(page_id), page_layout.to_altoxml_string(ocr_processing=ocr_processing), 'text/plain'),
-                                        'xml': ('{}.xml' .format(page_id), page_layout.to_pagexml_string(), 'text/plain'),
+                                        'page': ('{}_page.xml' .format(page_id), page_layout.to_pagexml_string(), 'text/plain'),
                                         'txt': ('{}.txt' .format(page_id), get_page_layout_text(page_layout), 'text/plain')},
                                  headers=headers)
             else:
