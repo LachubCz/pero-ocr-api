@@ -1,9 +1,12 @@
 import os
 import json
 import zipfile
+import traceback
 from io import BytesIO
-from flask import redirect, request, jsonify, send_file
+from urllib.parse import urlparse
+from flask import redirect, request, jsonify, send_file, send_from_directory
 from werkzeug.utils import secure_filename
+from pathlib import Path
 from app.main import bp
 from app.db.api_key import require_user_api_key, require_super_user_api_key
 from app.db.model import PageState
@@ -12,7 +15,7 @@ from app.main.general import process_request, request_exists, cancel_request_by_
                              get_engine_dict, get_page_by_id, check_save_path, get_page_by_preferred_engine, \
                              request_belongs_to_api_key, get_engine_version, get_engine_by_page_id, \
                              change_page_to_processed, get_page_and_page_state, get_engine, get_latest_models, \
-                             get_document_pages, change_page_to_failed, get_page_statistics
+                             get_document_pages, change_page_to_failed, get_page_statistics, change_page_path
 
 
 @bp.route('/')
@@ -41,6 +44,48 @@ def post_processing_request():
             return jsonify({
                 'status': 'failure',
                 'message': 'Engine not found.'}), 404
+
+
+@bp.route('/upload_image/<string:request_id>/<string:page_name>', methods=['POST'])
+@require_user_api_key
+def upload_image(request_id, page_name):
+    request_ = request_exists(request_id)
+    if not request_:
+        return jsonify({
+            'status': 'failure',
+            'message': 'Request doesn\'t exist.'}), 404
+    if not request_belongs_to_api_key(request.headers.get('api-key'), request_id):
+        return jsonify({
+            'status': 'failure',
+            'message': 'Request doesn\'t belong to this API key.'}), 401
+    page, page_state = get_page_and_page_state(request_id, page_name)
+    if not page:
+        return jsonify({
+            'status': 'failure',
+            'message': 'Page doesn\'t exist.'}), 404
+    if page_state != PageState.CREATED:
+        return jsonify({
+            'status': 'failure',
+            'message': 'Page isn\'t in CREATED state.'}), 202
+
+    if 'file' not in request.files:
+        return jsonify({
+            'status': 'failure',
+            'message': 'Page isn\'t in CREATED state.'}), 400
+
+    file = request.files['file']
+    if file and file.filename.split('.')[-1] in app.config['ALLOWED_IMAGE_EXTENSIONS']:
+        Path(os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(page.request_id))).mkdir(parents=True, exist_ok=True)
+        file.save(os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(page.request_id), page_name+'.'+file.filename.split('.')[-1]))
+        o = urlparse(request.base_url)
+        path = '{}://{}/download_image/{}/{}'.format(o.scheme, o.netloc, request_id, page_name+'.'+file.filename.split('.')[-1])
+        change_page_path(request_id, page_name, path)
+        return jsonify({
+            'status': 'success'})
+    else:
+        return jsonify({
+            'status': 'failure',
+            'message': 'Bad image extension.'}), 422
 
 
 @bp.route('/request_status/<string:request_id>', methods=['GET'])
@@ -248,3 +293,33 @@ def page_statistics():
     return jsonify({
         'status': 'success',
         'stats': page_stats}), 200
+
+
+@bp.route('/download_image/<string:request_id>/<string:page_name>', methods=['GET'])
+@require_super_user_api_key
+def download_image(request_id, page_name):
+    extension = page_name.split('.')[-1]
+    page_name = page_name[:-(len(extension)+1)]
+
+    request_ = request_exists(request_id)
+    if not request_:
+        return jsonify({
+            'status': 'failure',
+            'message': 'Request doesn\'t exist.'}), 404
+    if not request_belongs_to_api_key(request.headers.get('api-key'), request_id):
+        return jsonify({
+            'status': 'failure',
+            'message': 'Request doesn\'t belong to this API key.'}), 401
+    page, page_state = get_page_and_page_state(request_id, page_name)
+    if not page:
+        return jsonify({
+            'status': 'failure',
+            'message': 'Page doesn\'t exist.'}), 404
+    if page_state == PageState.CREATED:
+        return jsonify({
+            'status': 'failure',
+            'message': 'Page isn\'t uploaded yet.'}), 202
+
+    return send_file(
+        os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(request_.id), '{}.{}'.format(page.name, extension))
+    )

@@ -23,6 +23,8 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     Path(app.config['PROCESSED_REQUESTS_FOLDER']).mkdir(parents=True, exist_ok=True)
+    Path(app.config['MODELS_FOLDER']).mkdir(parents=True, exist_ok=True)
+    Path(app.config['UPLOAD_IMAGES_FOLDER']).mkdir(parents=True, exist_ok=True)
     init_db()
     Bootstrap(app)
     Dropzone(app)

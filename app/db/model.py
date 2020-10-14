@@ -67,8 +67,8 @@ class Page(Base):
     __tablename__ = 'page'
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(), nullable=False)
-    url = Column(String(), nullable=False)
-    state = Column(Enum(PageState), nullable=False, index=True, default=PageState.WAITING)
+    url = Column(String(), nullable=True)
+    state = Column(Enum(PageState), nullable=False, index=True)
     score = Column(Float(), nullable=True, index=True)
     traceback = Column(String(), nullable=True)
     finish_timestamp = Column(DateTime(), nullable=True, index=True)
@@ -76,9 +76,10 @@ class Page(Base):
     request_id = Column(GUID(), ForeignKey('request.id'), nullable=False, index=True)
     engine_version = Column(Integer(), ForeignKey('engine_version.id'), nullable=True)
 
-    def __init__(self, name, url, request_id):
+    def __init__(self, name, url, state, request_id):
         self.name = name
         self.url = url
+        self.state = state
         self.request_id = request_id
 
 

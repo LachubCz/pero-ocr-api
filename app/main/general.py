@@ -29,7 +29,10 @@ def process_request(api_string, json_request):
         db_session.add(request)
         db_session.commit()
         for image_name in json_request["images"]:
-            page = Page(image_name, json_request["images"][image_name], request.id)
+            if json_request["images"][image_name] is None:
+                page = Page(image_name, None, PageState.CREATED, request.id)
+            else:
+                page = Page(image_name, json_request["images"][image_name], PageState.WAITING, request.id)
             db_session.add(page)
         db_session.commit()
         return request
@@ -201,3 +204,10 @@ def get_latest_models(engine_id):
 def get_document_pages(request_id):
     pages = db_session.query(Page).filter(Page.request_id == request_id).all()
     return pages
+
+
+def change_page_path(request_id, page_name, new_url):
+    page = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.name == page_name).first()
+    page.url = new_url
+    page.state = PageState.WAITING
+    db_session.commit()
