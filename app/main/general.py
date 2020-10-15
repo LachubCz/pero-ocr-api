@@ -91,6 +91,7 @@ def get_page_by_preferred_engine(engine_id):
 
     if page:
         page.state = PageState.PROCESSING
+        page.processing_timestamp = datetime.datetime.now()
         db_session.commit()
 
     return page, engine_id

@@ -71,6 +71,7 @@ class Page(Base):
     state = Column(Enum(PageState), nullable=False, index=True)
     score = Column(Float(), nullable=True, index=True)
     traceback = Column(String(), nullable=True)
+    processing_timestamp = Column(DateTime(), nullable=True)
     finish_timestamp = Column(DateTime(), nullable=True, index=True)
 
     request_id = Column(GUID(), ForeignKey('request.id'), nullable=False, index=True)

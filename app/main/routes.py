@@ -4,7 +4,7 @@ import zipfile
 import traceback
 from io import BytesIO
 from urllib.parse import urlparse
-from flask import redirect, request, jsonify, send_file, send_from_directory
+from flask import redirect, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 from pathlib import Path
 from app.main import bp
