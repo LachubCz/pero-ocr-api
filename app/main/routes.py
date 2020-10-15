@@ -202,7 +202,7 @@ def upload_results(page_id):
             'status': 'failure',
             'message': 'Page doesn\'t exist.'}), 404
 
-    score = int(request.headers.get('score'))
+    score = round(float(request.headers.get('score')) * 100, 2)
     engine_version_str = str(request.headers.get('engine-version'))
 
     engine = get_engine_by_page_id(page_id)

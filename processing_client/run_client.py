@@ -8,12 +8,14 @@ import argparse
 import traceback
 import configparser
 import urllib.request
+from pathlib import Path
 
 import numpy as np
 import cv2
 
 from pero_ocr.document_ocr.page_parser import PageParser
 from pero_ocr.document_ocr.layout import PageLayout, create_ocr_processing_element
+from pero_ocr.confidence_estimation import get_line_confidence
 
 
 def get_args():
@@ -77,6 +79,22 @@ def get_page_layout_text(page_layout):
     return text
 
 
+def get_score(page_layout):
+    line_quantiles = []
+    for line in page_layout.lines_iterator():
+        if line.transcription is not None and line.transcription != "":
+            char_map = dict([(c, i) for i, c in enumerate(line.characters)])
+            c_idx = np.asarray([char_map[c] for c in line.transcription])
+
+            confidences = get_line_confidence(line, c_idx)
+            if confidences.size != 0:
+                line_quantiles.append(np.quantile(confidences, .50))
+    if not line_quantiles:
+        return 1.0
+    else:
+        return np.quantile(line_quantiles, .50)
+
+
 def main():
     args = get_args()
 
@@ -87,6 +105,8 @@ def main():
         config.read(args.config)
     else:
         config.read('config.ini')
+
+    Path(config['SETTINGS']['engines_path']).mkdir(parents=True, exist_ok=True)
 
     if args.api_key is not None:
         config["SETTINGS"]['api_key'] = args.api_key
@@ -160,7 +180,7 @@ def main():
 
                     headers = {'api-key': config['SETTINGS']['api_key'],
                                'engine-version': engine_version,
-                               'score': '100'}
+                               'score': str(get_score(page_layout))}
 
                     ocr_processing = create_ocr_processing_element(id="IdOcr",
                                                                    software_creator_str="Project PERO",
