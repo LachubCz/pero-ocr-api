@@ -1,21 +1,22 @@
 import os
 import re
 import io
+import cv2
 import time
 import zipfile
 import requests
 import argparse
 import traceback
+import numpy as np
 import configparser
 import urllib.request
 from pathlib import Path
 
-import numpy as np
-import cv2
-
 from pero_ocr.document_ocr.page_parser import PageParser
 from pero_ocr.document_ocr.layout import PageLayout, create_ocr_processing_element
 from pero_ocr.confidence_estimation import get_line_confidence
+
+from helper import join_url
 
 
 def get_args():
@@ -33,17 +34,6 @@ def get_args():
     args = parser.parse_args()
 
     return args
-
-
-def join_url(*paths):
-    final_paths = []
-    first_path = paths[0].strip()
-    if first_path[-1] == '/':
-        first_path = first_path[:-1]
-    final_paths.append(first_path)
-    for path in paths[1:]:
-        final_paths.append(path.strip().strip('/'))
-    return '/'.join(final_paths)
 
 
 def get_engine(config, headers, engine_id):

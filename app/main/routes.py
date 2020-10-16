@@ -288,11 +288,12 @@ def report_failed_processing(page_id):
 @bp.route('/page_statistics', methods=['GET'])
 @require_super_user_api_key
 def page_statistics():
-    page_stats = get_page_statistics()
+    state_stats, engine_stats = get_page_statistics()
 
     return jsonify({
         'status': 'success',
-        'stats': page_stats}), 200
+        'state_stats': state_stats,
+        'engine_stats': engine_stats}), 200
 
 
 @bp.route('/download_image/<string:request_id>/<string:page_name>', methods=['GET'])
