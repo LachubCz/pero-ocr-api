@@ -1,0 +1,63 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+  <style>
+    .canvasjs-chart-tooltip{
+    right: 5px !important;
+    left: auto !important;
+    top: 30px !important;
+    bottom: auto !important;
+    }
+  </style>
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+  <script type="text/javascript">
+  window.onload = function () {
+  var data = JSON.parse('{{ data | tojson | safe}}');
+
+  var chart = new CanvasJS.Chart("chartContainer", {
+      theme: "light2", // "light2", "dark1", "dark2"
+      animationEnabled: false, // change to true
+      title: {
+        text: "Last 24 Hours",
+        fontSize: 23,
+      },
+      axisY: {
+		title: "Pages",
+		titleFontSize: 18,
+		includeZero: true
+	  },
+      data: [
+      {
+          type: "column",
+          dataPoints: [
+              { label: "CREATED",    y: data['CREATED']  },
+              { label: "WAITING",    y: data['WAITING']  },
+              { label: "PROCESSING", y: data['PROCESSING']  },
+              { label: "PROCESSED",  y: data['PROCESSED']  },
+              { label: "FAILED",     y: data['INVALID_FILE'] + data['NOT_FOUND'] + data['PROCESSING_FAILED']  },
+              { label: "CANCELED",   y: data['CANCELED']  }
+          ]
+      }
+      ]
+  });
+  chart.render();
+  document.getElementsByClassName('canvasjs-chart-credit')[0].style.visibility = 'hidden';
+  }
+  </script>
+</head>
+<body>
+  <H1 style="font-family: sans-serif;text-align: center;font-size: revert;color: #3A3A3A;font-weight: bold;margin: revert;">PERO API</H1>
+  <div id="chartContainer" style="height: 370px; width: 50%;display: flex;justify-content: center;"></div>
+  <script src="https://canvasjs.com/assets/script/canvasjs.min.js"> </script>
+  <div class="container">
+    <div class="row">
+      <div class="col text-center">
+        <a href="https://app.swaggerhub.com/apis-docs/LachubCz/PERO-API/1.0.0#/" class="btn btn-info" role="button" style="margin: 30px;">Read the documentation</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

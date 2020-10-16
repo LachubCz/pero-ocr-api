@@ -11,6 +11,7 @@ from app.main import bp
 from app.db.api_key import require_user_api_key, require_super_user_api_key
 from app.db.model import PageState
 from flask import current_app as app
+from flask import render_template
 from app.main.general import process_request, request_exists, cancel_request_by_id, \
                              get_engine_dict, get_page_by_id, check_save_path, get_page_by_preferred_engine, \
                              request_belongs_to_api_key, get_engine_version, get_engine_by_page_id, \
@@ -22,7 +23,8 @@ from app.main.general import process_request, request_exists, cancel_request_by_
 @bp.route('/docs')
 @bp.route('/index')
 def index():
-    return redirect('https://app.swaggerhub.com/apis-docs/LachubCz/PERO-API/1.0.0#/')
+    state_stats, _ = get_page_statistics()
+    return render_template('index.html', data=state_stats)
 
 
 @bp.route('/post_processing_request', methods=['POST'])
