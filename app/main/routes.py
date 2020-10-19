@@ -20,11 +20,15 @@ from app.main.general import process_request, request_exists, cancel_request_by_
 
 
 @bp.route('/')
-@bp.route('/docs')
 @bp.route('/index')
 def index():
     state_stats, _ = get_page_statistics()
     return render_template('index.html', data=state_stats)
+
+
+@bp.route('/docs')
+def documentation():
+    return redirect('https://app.swaggerhub.com/apis-docs/LachubCz/PERO-API/1.0.1')
 
 
 @bp.route('/post_processing_request', methods=['POST'])
@@ -73,7 +77,7 @@ def upload_image(request_id, page_name):
     if 'file' not in request.files:
         return jsonify({
             'status': 'failure',
-            'message': 'Page isn\'t in CREATED state.'}), 400
+            'message': 'Request file doesn\'t exists.'}), 400
 
     file = request.files['file']
     if file and file.filename.split('.')[-1] in app.config['ALLOWED_IMAGE_EXTENSIONS']:
