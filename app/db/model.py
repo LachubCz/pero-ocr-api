@@ -66,7 +66,7 @@ class Request(Base):
 class Page(Base):
     __tablename__ = 'page'
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    name = Column(String(), nullable=False)
+    name = Column(String(), nullable=False, index=True)
     url = Column(String(), nullable=True)
     state = Column(Enum(PageState), nullable=False, index=True)
     score = Column(Float(), nullable=True, index=True)
@@ -75,7 +75,7 @@ class Page(Base):
     finish_timestamp = Column(DateTime(), nullable=True, index=True)
 
     request_id = Column(GUID(), ForeignKey('request.id'), nullable=False, index=True)
-    engine_version = Column(Integer(), ForeignKey('engine_version.id'), nullable=True)
+    engine_version = Column(Integer(), ForeignKey('engine_version.id'), nullable=True, index=True)
 
     def __init__(self, name, url, state, request_id):
         self.name = name
