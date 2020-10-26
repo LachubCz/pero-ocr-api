@@ -1,6 +1,5 @@
 import os
 import re
-import io
 import cv2
 import time
 import zipfile
@@ -9,7 +8,7 @@ import argparse
 import traceback
 import numpy as np
 import configparser
-import urllib.request
+from urllib.request import Request, urlopen
 from pathlib import Path
 
 from pero_ocr.document_ocr.page_parser import PageParser
@@ -133,7 +132,10 @@ def main():
 
                 # Download image from url.
                 try:
-                    page = urllib.request.urlopen(page_url).read()
+                    req = Request(page_url)
+                    req.add_header('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11')
+                    req.add_header('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
+                    page = urlopen(req).read()
                 except:
                     exception = traceback.format_exc()
                     headers = {'api-key': config['SETTINGS']['api_key'],
