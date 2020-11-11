@@ -1,7 +1,6 @@
 import os
-import json
+import os.path
 import zipfile
-import traceback
 from io import BytesIO
 from urllib.parse import urlparse
 from flask import redirect, request, jsonify, send_file
@@ -228,6 +227,14 @@ def upload_results(page_id):
 
     change_page_to_processed(page_id, score, engine_version.id)
 
+    # remove image if exists
+    extension = page.url.split('.')[-1]
+    page_name = page.name
+    request_id = page.request_id
+    image_path = os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(request_id), '{}.{}'.format(page_name, extension))
+    if os.path.isfile(image_path):
+        os.remove(image_path)
+
     return jsonify({
         'status': 'success'}), 200
 
@@ -313,10 +320,6 @@ def download_image(request_id, page_name):
         return jsonify({
             'status': 'failure',
             'message': 'Request doesn\'t exist.'}), 404
-    if not request_belongs_to_api_key(request.headers.get('api-key'), request_id):
-        return jsonify({
-            'status': 'failure',
-            'message': 'Request doesn\'t belong to this API key.'}), 401
     page, page_state = get_page_and_page_state(request_id, page_name)
     if not page:
         return jsonify({
@@ -326,6 +329,10 @@ def download_image(request_id, page_name):
         return jsonify({
             'status': 'failure',
             'message': 'Page isn\'t uploaded yet.'}), 202
+    if page_state == PageState.PROCESSED:
+        return jsonify({
+            'status': 'failure',
+            'message': 'Page is already processed.'}), 202
 
     return send_file(
         os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(request_.id), '{}.{}'.format(page.name, extension))
