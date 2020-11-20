@@ -56,8 +56,11 @@ def cancel_request_by_id(request_id):
                                           .filter(Page.state != PageState.INVALID_FILE) \
                                           .filter(Page.state != PageState.PROCESSING_FAILED)\
                                           .all()
+
+    timestamp = datetime.datetime.utcnow()
     for page in waiting_pages:
         page.state = PageState.CANCELED
+        page.finish_timestamp = timestamp
     db_session.commit()
 
 
@@ -124,14 +127,15 @@ def get_page_statistics(history_hours=24):
     from_datetime = datetime.datetime.utcnow() - datetime.timedelta(hours=history_hours)
     finished_pages = db_session.query(Page).filter(Page.finish_timestamp > from_datetime).all()
     unfinished_pages = db_session.query(Page).filter(Page.finish_timestamp == None).all()
-    state_stats = {state.name: 0 for state in PageState}
+    state_stats = {state.name: 0 for state in PageState if state != PageState.CREATED}
     engine_stats = {engine.id: 0 for engine in db_session.query(Engine).all()}
     request_to_engine = {request.id: request.engine_id for request in db_session.query(Request).all()}
 
     for page_db in finished_pages:
         state_stats[page_db.state.name] += 1
     for page_db in unfinished_pages:
-        state_stats[page_db.state.name] += 1
+        if page_db.state.name == PageState.WAITING or page_db.state.name == PageState.PROCESSING:
+            state_stats[page_db.state.name] += 1
         engine_stats[request_to_engine[page_db.request_id]] += 1
 
     return state_stats, engine_stats
@@ -200,12 +204,12 @@ def get_engine(engine_id):
 
 
 def get_latest_models(engine_id):
-    engine_versions = db_session.query(EngineVersion).filter(EngineVersion.engine_id == engine_id).all()
+    engine_version = db_session.query(EngineVersion).filter(EngineVersion.engine_id == engine_id).order_by(EngineVersion.id.desc()).first()
     models = db_session.query(Model)\
                        .outerjoin(EngineVersionModel)\
-                       .filter(EngineVersionModel.engine_version_id == engine_versions[-1].id)\
+                       .filter(EngineVersionModel.engine_version_id == engine_version.id)\
                        .all()
-    return engine_versions[-1], models
+    return engine_version, models
 
 
 def get_document_pages(request_id):
