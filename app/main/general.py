@@ -204,12 +204,12 @@ def get_engine(engine_id):
 
 
 def get_latest_models(engine_id):
-    engine_versions = db_session.query(EngineVersion).filter(EngineVersion.engine_id == engine_id).all()
+    engine_version = db_session.query(EngineVersion).filter(EngineVersion.engine_id == engine_id).order_by(EngineVersion.id.desc()).first()
     models = db_session.query(Model)\
                        .outerjoin(EngineVersionModel)\
-                       .filter(EngineVersionModel.engine_version_id == engine_versions[-1].id)\
+                       .filter(EngineVersionModel.engine_version_id == engine_version.id)\
                        .all()
-    return engine_versions[-1], models
+    return engine_version, models
 
 
 def get_document_pages(request_id):
