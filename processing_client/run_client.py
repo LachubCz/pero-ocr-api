@@ -135,6 +135,8 @@ def main():
                     req = Request(page_url)
                     req.add_header('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11')
                     req.add_header('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
+                    if config['SERVER']['base_url'] in page_url:
+                        req.add_header('api-key', config['SETTINGS']['api_key'])
                     page = urlopen(req).read()
                 except:
                     exception = traceback.format_exc()
