@@ -134,7 +134,7 @@ def get_page_statistics(history_hours=24):
     for page_db in finished_pages:
         state_stats[page_db.state.name] += 1
     for page_db in unfinished_pages:
-        if page_db.state.name == PageState.WAITING or page_db.state.name == PageState.PROCESSING:
+        if page_db.state == PageState.WAITING or page_db.state == PageState.PROCESSING:
             state_stats[page_db.state.name] += 1
         engine_stats[request_to_engine[page_db.request_id]] += 1
 
