@@ -27,6 +27,8 @@ def get_args():
     parser.add_argument("-c", "--config", help="Config path.")
     parser.add_argument("-a", "--api-key", help="API key.")
     parser.add_argument("-e", "--preferred-engine", dest="engine", help="Preferred engine ID.")
+    parser.add_argument("--test-mode", action="store_true", help="Doesn't send results to server.")
+    parser.add_argument("--test-path", "Path to store files in test mode.")
     parser.add_argument("--exit-on-done", action="store_true", help="Exit when no more data from server.")
     parser.add_argument("--time-limit", default=-1, type=float, help="Exit when runing longer than time-limit hours.")
 
@@ -192,11 +194,21 @@ def main():
                         headers=headers)
                     continue
                 else:
-                    session.post(join_url(config['SERVER']['base_url'], config['SERVER']['post_upload_results'], page_id),
-                                 files={'alto': ('{}_alto.xml' .format(page_id), page_layout.to_altoxml_string(ocr_processing=ocr_processing), 'text/plain'),
-                                        'page': ('{}_page.xml' .format(page_id), page_layout.to_pagexml_string(), 'text/plain'),
-                                        'txt': ('{}.txt' .format(page_id), get_page_layout_text(page_layout), 'text/plain')},
-                                 headers=headers)
+                    if args.test_mode:
+                        with open(os.path.join(args.test_path, '{}_alto.xml' .format(page_id)), "w") as file:
+                            file.write(page_layout.to_altoxml_string(ocr_processing=ocr_processing))
+                        with open(os.path.join(args.test_path, '{}_page.xml' .format(page_id)), "w") as file:
+                            file.write(page_layout.to_pagexml_string())
+                        with open(os.path.join(args.test_path, '{}.txt' .format(page_id)), "w") as file:
+                            file.write(get_page_layout_text(page_layout))
+                    else:
+                        session.post(join_url(config['SERVER']['base_url'], config['SERVER']['post_upload_results'], page_id),
+                                     files={'alto': ('{}_alto.xml' .format(page_id), page_layout.to_altoxml_string(ocr_processing=ocr_processing), 'text/plain'),
+                                            'page': ('{}_page.xml' .format(page_id), page_layout.to_pagexml_string(), 'text/plain'),
+                                            'txt': ('{}.txt' .format(page_id), get_page_layout_text(page_layout), 'text/plain')},
+                                     headers=headers)
+
+
             else:
                 if args.exit_on_done:
                     break
