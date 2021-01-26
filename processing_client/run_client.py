@@ -28,7 +28,7 @@ def get_args():
     parser.add_argument("-a", "--api-key", help="API key.")
     parser.add_argument("-e", "--preferred-engine", dest="engine", help="Preferred engine ID.")
     parser.add_argument("--test-mode", action="store_true", help="Doesn't send results to server.")
-    parser.add_argument("--test-path", "Path to store files in test mode.")
+    parser.add_argument("--test-path", default='./', help="Path to store files in test mode.")
     parser.add_argument("--exit-on-done", action="store_true", help="Exit when no more data from server.")
     parser.add_argument("--time-limit", default=-1, type=float, help="Exit when runing longer than time-limit hours.")
 
