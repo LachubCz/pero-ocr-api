@@ -40,9 +40,9 @@ if __name__ == '__main__':
     elif args.permission == 'SUPER_USER':
         permission = Permission.SUPER_USER
 
-    engine = create_engine(f'sqlite:///{args.database}',
+    engine = create_engine(f'{args.database}',
                            convert_unicode=True,
-                           connect_args={'check_same_thread': False})
+                           connect_args={})
     db_session = scoped_session(sessionmaker(autocommit=False,
                                              autoflush=False,
                                              bind=engine))

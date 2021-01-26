@@ -69,9 +69,9 @@ if __name__ == '__main__':
             exit(-1)
 
     # connect DB
-    db_engine = create_engine(f'sqlite:///{args.database}',
+    db_engine = create_engine(f'{args.database}',
                            convert_unicode=True,
-                           connect_args={'check_same_thread': False})
+                           connect_args={})
     db_session = scoped_session(sessionmaker(autocommit=False,
                                              autoflush=False,
                                              bind=db_engine))
