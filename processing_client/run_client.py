@@ -140,6 +140,10 @@ def main():
                     if config['SERVER']['base_url'] in page_url:
                         req.add_header('api-key', config['SETTINGS']['api_key'])
                     page = urlopen(req).read()
+                except KeyboardInterrupt:
+                    traceback.print_exc()
+                    print('Terminated by user.')
+                    sys.exit()
                 except:
                     exception = traceback.format_exc()
                     headers = {'api-key': config['SETTINGS']['api_key'],
@@ -158,6 +162,10 @@ def main():
                     image = cv2.imdecode(encoded_img, flags=cv2.IMREAD_ANYCOLOR)
                     if len(image.shape) == 2:
                         image = np.stack([image, image, image], axis=2)
+                except KeyboardInterrupt:
+                    traceback.print_exc()
+                    print('Terminated by user.')
+                    sys.exit()
                 except:
                     exception = traceback.format_exc()
                     headers = {'api-key': config['SETTINGS']['api_key'],
@@ -183,6 +191,10 @@ def main():
                                                                    software_name_str="{}" .format(engine_name),
                                                                    software_version_str="{}" .format(engine_version),
                                                                    processing_datetime=None)
+                except KeyboardInterrupt:
+                    traceback.print_exc()
+                    print('Terminated by user.')
+                    sys.exit()
                 except:
                     exception = traceback.format_exc()
                     headers = {'api-key': config['SETTINGS']['api_key'],
