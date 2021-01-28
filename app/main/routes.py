@@ -1,9 +1,11 @@
 import os
 import os.path
 import zipfile
+import datetime
 from io import BytesIO
 from urllib.parse import urlparse
 from flask import redirect, request, jsonify, send_file
+from flask_mail import Message, Mail
 from werkzeug.utils import secure_filename
 from pathlib import Path
 from app.main import bp
@@ -16,6 +18,8 @@ from app.main.general import process_request, request_exists, cancel_request_by_
                              request_belongs_to_api_key, get_engine_version, get_engine_by_page_id, \
                              change_page_to_processed, get_page_and_page_state, get_engine, get_latest_models, \
                              get_document_pages, change_page_to_failed, get_page_statistics, change_page_path
+
+last_sent_mail_timestamp = datetime.datetime(1900, 1, 1)
 
 
 @bp.route('/')
@@ -285,6 +289,7 @@ def download_engine(engine_id):
 @bp.route('/failed_processing/<string:page_id>', methods=['POST'])
 @require_super_user_api_key
 def report_failed_processing(page_id):
+    global last_sent_mail_timestamp
     fail_type = str(request.headers.get('type'))
     traceback = str(request.data)
     engine_version_str = str(request.headers.get('engine_version'))
@@ -293,6 +298,18 @@ def report_failed_processing(page_id):
     engine_version = get_engine_version(engine.id, engine_version_str)
 
     change_page_to_failed(page_id, fail_type, traceback, engine_version.id)
+
+    if fail_type == "PROCESSING_FAILED" and app.config['EMAIL_NOTIFICATION_ADDRESSES'] != []:
+        if (datetime.datetime.now() - last_sent_mail_timestamp).total_seconds() > app.config["MAX_EMAIL_FREQUENCY"]:
+            with app.app_context():
+                mail = Mail()
+                mail.init_app(app)
+                msg = Message(subject="API Bot - PROCESSING_FAILED",
+                              body=traceback,
+                              sender=('PERO OCR - API BOT', app.config['MAIL_USERNAME']),
+                              recipients=app.config['EMAIL_NOTIFICATION_ADDRESSES'])
+                mail.send(msg)
+            last_sent_mail_timestamp = datetime.datetime.now()
 
     return jsonify({
         'status': 'success'}), 200
