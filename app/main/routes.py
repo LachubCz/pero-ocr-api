@@ -150,22 +150,25 @@ def download_results(request_id, page_name, format):
             'status': 'failure',
             'message': 'Page isn\'t processed.'}), 202
 
+    archive = zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), str(request_.id)+'.zip'), 'r')
+
     if format == 'alto':
-        return send_file(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), '{}_alto.xml'.format(page.name)),
-                         attachment_filename='{}.xml' .format(page.name),
-                         as_attachment=True)
+        data = archive.read('{}_alto.xml'.format(page.name))
+        extension = 'xml'
     elif format == 'page':
-        return send_file(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), '{}_page.xml'.format(page.name)),
-                         attachment_filename='{}.xml'.format(page.name),
-                         as_attachment=True)
+        data = archive.read('{}_page.xml'.format(page.name))
+        extension = 'xml'
     elif format == 'txt':
-        return send_file(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), '{}.txt'.format(page.name)),
-                         attachment_filename='{}.txt'.format(page.name),
-                         as_attachment=True)
+        data = archive.read('{}.txt'.format(page.name))
+        extension = 'txt'
     else:
         return jsonify({
             'status': 'failure',
             'message': 'Bad export format.'}), 400
+
+    return send_file(BytesIO(data),
+                     attachment_filename='{}.{}'.format(page.name, extension),
+                     as_attachment=True)
 
 
 @bp.route('/cancel_request/<string:request_id>', methods=['POST'])
@@ -220,15 +223,10 @@ def upload_results(page_id):
 
     check_save_path(page.request_id)
 
-    file = request.files['alto']
-    file.save(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id),
-                           secure_filename(page.name + '_alto.xml')))
-    file = request.files['page']
-    file.save(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id),
-                           secure_filename(page.name + '_page.xml')))
-    file = request.files['txt']
-    file.save(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id),
-                           secure_filename(page.name + '.txt')))
+    with zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'.zip'), 'w', zipfile.ZIP_DEFLATED) as zipf:
+        zipf.writestr(page.name + '_alto.xml', request.files['alto'].read())
+        zipf.writestr(page.name + '_page.xml', request.files['page'].read())
+        zipf.writestr(page.name + '.txt', request.files['txt'].read())
 
     change_page_to_processed(page_id, score, engine_version.id)
 
