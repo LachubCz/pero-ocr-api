@@ -2,9 +2,10 @@ import os
 import os.path
 import zipfile
 import datetime
+import traceback
 from io import BytesIO
 from urllib.parse import urlparse
-from flask import redirect, request, jsonify, send_file
+from flask import redirect, request, jsonify, send_file, abort
 from flask_mail import Message, Mail
 from werkzeug.utils import secure_filename
 from pathlib import Path
@@ -354,3 +355,17 @@ def download_image(request_id, page_name):
     return send_file(
         os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(request_.id), '{}.{}'.format(page.name, extension))
     )
+
+
+@bp.errorhandler(500)
+def handle_exception(e):
+    with app.app_context():
+        mail = Mail()
+        mail.init_app(app)
+        msg = Message(subject="API Bot - INTERNAL SERVER ERROR",
+                      body=traceback.format_exc(),
+                      sender=('PERO OCR - API BOT', app.config['MAIL_USERNAME']),
+                      recipients=app.config['EMAIL_NOTIFICATION_ADDRESSES'])
+        mail.send(msg)
+
+    abort(500)
