@@ -199,22 +199,22 @@ def main():
                                                                    software_version_str="{}" .format(engine_version),
                                                                    processing_datetime=None)
 
+                    alto_xml = page_layout.to_altoxml_string(ocr_processing=ocr_processing)
+
+                    for line in page_layout.lines_iterator():
+                        if arabic_helper.is_arabic_line(line.transcription):
+                            line.transcription = arabic_helper.label_form_to_string(line.transcription)
+                    page_xml = page_layout.to_pagexml_string()
+                    text = get_page_layout_text(page_layout)
+
                     if args.test_mode:
                         with open(os.path.join(args.test_path, '{}_alto.xml' .format(page_id)), "w") as file:
-                            file.write(page_layout.to_altoxml_string(ocr_processing=ocr_processing))
+                            file.write(alto_xml)
                         with open(os.path.join(args.test_path, '{}_page.xml' .format(page_id)), "w") as file:
-                            file.write(page_layout.to_pagexml_string())
+                            file.write(page_xml)
                         with open(os.path.join(args.test_path, '{}.txt' .format(page_id)), "w") as file:
-                            file.write(get_page_layout_text(page_layout))
+                            file.write(text)
                     else:
-                        alto_xml = page_layout.to_altoxml_string(ocr_processing=ocr_processing)
-
-                        for line in page_layout.lines_iterator():
-                            if arabic_helper.is_arabic_line(line.transcription):
-                                line.transcription = arabic_helper.label_form_to_string(line.transcription)
-                        page_xml = page_layout.to_pagexml_string()
-                        text = get_page_layout_text(page_layout)
-
                         headers = {'api-key': config['SETTINGS']['api_key'],
                                    'engine-version': engine_version,
                                    'score': str(get_score(page_layout))}
