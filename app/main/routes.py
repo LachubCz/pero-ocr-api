@@ -7,7 +7,6 @@ from io import BytesIO
 from urllib.parse import urlparse
 from flask import redirect, request, jsonify, send_file, abort
 from flask_mail import Message, Mail
-from werkzeug.utils import secure_filename
 from pathlib import Path
 from app.main import bp
 from app.db.api_key import require_user_api_key, require_super_user_api_key
@@ -18,9 +17,8 @@ from app.main.general import process_request, request_exists, cancel_request_by_
                              get_engine_dict, get_page_by_id, check_save_path, get_page_by_preferred_engine, \
                              request_belongs_to_api_key, get_engine_version, get_engine_by_page_id, \
                              change_page_to_processed, get_page_and_page_state, get_engine, get_latest_models, \
-                             get_document_pages, change_page_to_failed, get_page_statistics, change_page_path
-
-last_sent_mail_timestamp = datetime.datetime(1900, 1, 1)
+                             get_document_pages, change_page_to_failed, get_page_statistics, change_page_path, \
+                             get_request_by_page, get_notification, set_notification, get_api_key_by_id
 
 
 @bp.route('/')
@@ -145,6 +143,10 @@ def download_results(request_id, page_name, format):
         return jsonify({
             'status': 'failure',
             'message': 'Page doesn\'t exist.'}), 404
+    if page_state == PageState.EXPIRED:
+        return jsonify({
+            'status': 'failure',
+            'message': 'Page has expired.'}), 404
     if page_state != PageState.PROCESSED:
         return jsonify({
             'status': 'failure',
@@ -223,7 +225,7 @@ def upload_results(page_id):
 
     check_save_path(page.request_id)
 
-    with zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'.zip'), 'w', zipfile.ZIP_DEFLATED) as zipf:
+    with zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'.zip'), 'a', zipfile.ZIP_DEFLATED) as zipf:
         zipf.writestr(page.name + '_alto.xml', request.files['alto'].read())
         zipf.writestr(page.name + '_page.xml', request.files['page'].read())
         zipf.writestr(page.name + '.txt', request.files['txt'].read())
@@ -288,7 +290,8 @@ def download_engine(engine_id):
 @bp.route('/failed_processing/<string:page_id>', methods=['POST'])
 @require_super_user_api_key
 def report_failed_processing(page_id):
-    global last_sent_mail_timestamp
+    notification_timestamp = get_notification()
+
     fail_type = str(request.headers.get('type'))
     traceback = str(request.data)
     engine_version_str = str(request.headers.get('engine_version'))
@@ -299,16 +302,46 @@ def report_failed_processing(page_id):
     change_page_to_failed(page_id, fail_type, traceback, engine_version.id)
 
     if fail_type == "PROCESSING_FAILED" and app.config['EMAIL_NOTIFICATION_ADDRESSES'] != []:
-        if (datetime.datetime.now() - last_sent_mail_timestamp).total_seconds() > app.config["MAX_EMAIL_FREQUENCY"]:
+        print(datetime.datetime.now(), notification_timestamp, (datetime.datetime.now() - notification_timestamp).total_seconds(), app.config["MAX_EMAIL_FREQUENCY"])
+        if (datetime.datetime.now() - notification_timestamp).total_seconds() > app.config["MAX_EMAIL_FREQUENCY"]:
             with app.app_context():
                 mail = Mail()
                 mail.init_app(app)
+
+                page_db = get_page_by_id(page_id)
+                request_db = get_request_by_page(page_db)
+                api_key_db = get_api_key_by_id(request_db.api_key_id)
+
+                message_body = "processing_client_hostname: {}\n" \
+                               "processing_client_ip_address: {}\n" \
+                               "owner_api_key: {}\n" \
+                               "owner_description: {}\n" \
+                               "engine_id: {}\n" \
+                               "engine_name: {}\n" \
+                               "request_id: {}\n" \
+                               "page_id: {}\n" \
+                               "page_name: {}\n" \
+                               "page_url: {}\n" \
+                               "####################\n" \
+                               "traceback:\n{}" \
+                               .format(request.headers.get('hostname'),
+                                       request.headers.get('ip-address'),
+                                       api_key_db.api_string,
+                                       api_key_db.owner,
+                                       engine.id,
+                                       engine.name,
+                                       request_db.id,
+                                       page_db.id,
+                                       page_db.name,
+                                       page_db.url,
+                                       traceback)
+
                 msg = Message(subject="API Bot - PROCESSING_FAILED",
-                              body=traceback,
+                              body=message_body,
                               sender=('PERO OCR - API BOT', app.config['MAIL_USERNAME']),
                               recipients=app.config['EMAIL_NOTIFICATION_ADDRESSES'])
                 mail.send(msg)
-            last_sent_mail_timestamp = datetime.datetime.now()
+            set_notification()
 
     return jsonify({
         'status': 'success'}), 200

@@ -3,6 +3,7 @@ import re
 import cv2
 import sys
 import time
+import socket
 import zipfile
 import requests
 import argparse
@@ -186,7 +187,9 @@ def main():
                     exception = traceback.format_exc()
                     headers = {'api-key': config['SETTINGS']['api_key'],
                                'type': 'PROCESSING_FAILED',
-                               'engine-version': engine_version}
+                               'engine-version': engine_version,
+                               'hostname': socket.gethostname(),
+                               'ip-address': socket.gethostbyname(socket.gethostname())}
                     session.post(
                         join_url(config['SERVER']['base_url'], config['SERVER']['post_failed_processing'], page_id),
                         data=exception,

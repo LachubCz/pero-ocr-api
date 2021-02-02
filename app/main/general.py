@@ -4,7 +4,8 @@ import sqlalchemy
 from sqlalchemy import func
 from collections import defaultdict
 
-from app.db.model import Request, Engine, Page, PageState, ApiKey, EngineVersion, Model, EngineVersionModel, PageState
+from app.db.model import Request, Engine, Page, PageState, ApiKey, EngineVersion, Model, EngineVersionModel, \
+                         PageState, Notification
 from app import db_session
 from flask import current_app as app
 
@@ -55,6 +56,7 @@ def cancel_request_by_id(request_id):
                                           .filter(Page.state != PageState.NOT_FOUND)\
                                           .filter(Page.state != PageState.INVALID_FILE) \
                                           .filter(Page.state != PageState.PROCESSING_FAILED)\
+                                          .filter(Page.state != PageState.EXPIRED)\
                                           .all()
 
     timestamp = datetime.datetime.utcnow()
@@ -85,8 +87,9 @@ def check_save_path(request_id):
 
 
 def get_page_by_preferred_engine(engine_id):
-    page = db_session.query(Page).join(Request).filter(Page.state == PageState.WAITING)\
-                                               .filter(Request.engine_id == engine_id).first()
+    page = db_session.query(Page).join(Request).join(ApiKey).filter(Page.state == PageState.WAITING)\
+                                                            .filter(Request.engine_id == engine_id)\
+                                                            .filter(ApiKey.suspension == False).first()
     if not page:
         page = db_session.query(Page).filter(Page.state == PageState.WAITING).first()
         if page:
@@ -221,4 +224,25 @@ def change_page_path(request_id, page_name, new_url):
     page = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.name == page_name).first()
     page.url = new_url
     page.state = PageState.WAITING
+    db_session.commit()
+
+
+def get_request_by_page(page):
+    request = db_session.query(Request).filter(Request.id == page.request_id).first()
+    return request
+
+
+def get_api_key_by_id(api_id):
+    request = db_session.query(ApiKey).filter(ApiKey.id == api_id).first()
+    return request
+
+
+def get_notification():
+    notification = db_session.query(Notification).first()
+    return notification.last_notification
+
+
+def set_notification():
+    notification = db_session.query(Notification).first()
+    notification.last_notification = datetime.datetime.now()
     db_session.commit()
