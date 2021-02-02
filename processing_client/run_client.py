@@ -1,7 +1,9 @@
 import os
 import re
 import cv2
+import sys
 import time
+import socket
 import zipfile
 import requests
 import argparse
@@ -13,7 +15,7 @@ from pathlib import Path
 
 from pero_ocr.document_ocr.page_parser import PageParser
 from pero_ocr.document_ocr.layout import PageLayout, create_ocr_processing_element
-from pero_ocr.confidence_estimation import get_line_confidence
+from pero_ocr.document_ocr.arabic_helper import ArabicHelper
 
 from helper import join_url
 
@@ -27,8 +29,12 @@ def get_args():
     parser.add_argument("-c", "--config", help="Config path.")
     parser.add_argument("-a", "--api-key", help="API key.")
     parser.add_argument("-e", "--preferred-engine", dest="engine", help="Preferred engine ID.")
+    parser.add_argument("--test-mode", action="store_true", help="Doesn't send results to server.")
+    parser.add_argument("--test-path", default='./', help="Path to store files in test mode.")
     parser.add_argument("--exit-on-done", action="store_true", help="Exit when no more data from server.")
     parser.add_argument("--time-limit", default=-1, type=float, help="Exit when runing longer than time-limit hours.")
+    parser.add_argument("--min-confidence", default=0.66, type=float,
+                        help="Lines with lower confidence will be discarded.")
 
     args = parser.parse_args()
 
@@ -71,13 +77,8 @@ def get_page_layout_text(page_layout):
 def get_score(page_layout):
     line_quantiles = []
     for line in page_layout.lines_iterator():
-        if line.transcription is not None and line.transcription != "":
-            char_map = dict([(c, i) for i, c in enumerate(line.characters)])
-            c_idx = np.asarray([char_map[c] for c in line.transcription])
-
-            confidences = get_line_confidence(line, c_idx)
-            if confidences.size != 0:
-                line_quantiles.append(np.quantile(confidences, .50))
+        if line.transcription_confidence is not None:
+            line_quantiles.append(line.transcription_confidence)
     if not line_quantiles:
         return 1.0
     else:
@@ -103,6 +104,7 @@ def main():
     if args.engine is not None:
         config["SETTINGS"]['preferred_engine'] = args.preferred_engine
 
+    arabic_helper = ArabicHelper()
     with requests.Session() as session:
         headers = {'api-key': config['SETTINGS']['api_key']}
         page_parser, engine_name, engine_version = get_engine(config, headers, config["SETTINGS"]['preferred_engine'])
@@ -138,6 +140,10 @@ def main():
                     if config['SERVER']['base_url'] in page_url:
                         req.add_header('api-key', config['SETTINGS']['api_key'])
                     page = urlopen(req).read()
+                except KeyboardInterrupt:
+                    traceback.print_exc()
+                    print('Terminated by user.')
+                    sys.exit()
                 except:
                     exception = traceback.format_exc()
                     headers = {'api-key': config['SETTINGS']['api_key'],
@@ -149,13 +155,16 @@ def main():
                         headers=headers)
                     continue
 
-
                 # Decode image
                 try:
                     encoded_img = np.frombuffer(page, dtype=np.uint8)
                     image = cv2.imdecode(encoded_img, flags=cv2.IMREAD_ANYCOLOR)
                     if len(image.shape) == 2:
                         image = np.stack([image, image, image], axis=2)
+                except KeyboardInterrupt:
+                    traceback.print_exc()
+                    print('Terminated by user.')
+                    sys.exit()
                 except:
                     exception = traceback.format_exc()
                     headers = {'api-key': config['SETTINGS']['api_key'],
@@ -172,31 +181,60 @@ def main():
                     page_layout = PageLayout(id=page_id, page_size=(image.shape[1], image.shape[0]))
                     page_layout = page_parser.process_page(image, page_layout)
 
-                    headers = {'api-key': config['SETTINGS']['api_key'],
-                               'engine-version': engine_version,
-                               'score': str(get_score(page_layout))}
-
-                    ocr_processing = create_ocr_processing_element(id="IdOcr",
-                                                                   software_creator_str="Project PERO",
-                                                                   software_name_str="{}" .format(engine_name),
-                                                                   software_version_str="{}" .format(engine_version),
-                                                                   processing_datetime=None)
+                except KeyboardInterrupt:
+                    traceback.print_exc()
+                    print('Terminated by user.')
+                    sys.exit()
                 except:
                     exception = traceback.format_exc()
                     headers = {'api-key': config['SETTINGS']['api_key'],
                                'type': 'PROCESSING_FAILED',
-                               'engine-version': engine_version}
+                               'engine-version': engine_version,
+                               'hostname': socket.gethostname(),
+                               'ip-address': socket.gethostbyname(socket.gethostname())}
                     session.post(
                         join_url(config['SERVER']['base_url'], config['SERVER']['post_failed_processing'], page_id),
                         data=exception,
                         headers=headers)
                     continue
                 else:
-                    session.post(join_url(config['SERVER']['base_url'], config['SERVER']['post_upload_results'], page_id),
-                                 files={'alto': ('{}_alto.xml' .format(page_id), page_layout.to_altoxml_string(ocr_processing=ocr_processing), 'text/plain'),
-                                        'page': ('{}_page.xml' .format(page_id), page_layout.to_pagexml_string(), 'text/plain'),
-                                        'txt': ('{}.txt' .format(page_id), get_page_layout_text(page_layout), 'text/plain')},
-                                 headers=headers)
+                    ocr_processing = create_ocr_processing_element(id="IdOcr",
+                                                                   software_creator_str="Project PERO",
+                                                                   software_name_str="{}" .format(engine_name),
+                                                                   software_version_str="{}" .format(engine_version),
+                                                                   processing_datetime=None)
+
+                    alto_xml = page_layout.to_altoxml_string(ocr_processing=ocr_processing,
+                                                             min_line_confidence=args.min_confidence)
+
+                    if args.min_confidence > 0:
+                        for region in page_layout.regions:
+                            region.lines = \
+                                [l for l in region.lines if l.transcription_confidence and l.transcription_confidence > args.min_confidence]
+
+                    for line in page_layout.lines_iterator():
+                        if arabic_helper.is_arabic_line(line.transcription):
+                            line.transcription = arabic_helper.label_form_to_string(line.transcription)
+                    page_xml = page_layout.to_pagexml_string()
+                    text = get_page_layout_text(page_layout)
+
+                    if args.test_mode:
+                        with open(os.path.join(args.test_path, '{}_alto.xml' .format(page_id)), "w") as file:
+                            file.write(alto_xml)
+                        with open(os.path.join(args.test_path, '{}_page.xml' .format(page_id)), "w") as file:
+                            file.write(page_xml)
+                        with open(os.path.join(args.test_path, '{}.txt' .format(page_id)), "w") as file:
+                            file.write(text)
+                    else:
+                        headers = {'api-key': config['SETTINGS']['api_key'],
+                                   'engine-version': engine_version,
+                                   'score': str(get_score(page_layout))}
+                        session.post(join_url(config['SERVER']['base_url'], config['SERVER']['post_upload_results'], page_id),
+                                     files={'alto': ('{}_alto.xml' .format(page_id), alto_xml, 'text/plain'),
+                                            'page': ('{}_page.xml' .format(page_id), page_xml, 'text/plain'),
+                                            'txt': ('{}.txt' .format(page_id), text, 'text/plain')},
+                                     headers=headers)
+
             else:
                 if args.exit_on_done:
                     break

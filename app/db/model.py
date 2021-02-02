@@ -4,7 +4,7 @@ import datetime
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker, relationship
-from sqlalchemy import Column, Enum, ForeignKey, Integer, String, DateTime, Float
+from sqlalchemy import Column, Enum, ForeignKey, Integer, String, DateTime, Float, Boolean
 from app.db import Base
 
 from app.db.guid import GUID
@@ -28,6 +28,7 @@ class PageState(enum.Enum):
     PROCESSING_FAILED = 'Page processing failed.'
     PROCESSED = 'Page was processed.'
     CANCELED = 'Page processing was canceled.'
+    EXPIRED = 'Page expired.'
 
 
 class Permission(enum.Enum):
@@ -41,6 +42,7 @@ class ApiKey(Base):
     api_string = Column(String(), nullable=False, index=True)
     owner = Column(String(), nullable=False)
     permission = Column(Enum(Permission), nullable=False)
+    suspension = Column(Boolean(), nullable=False, default=False)
 
     def __init__(self, api_string, owner, permission):
         self.api_string = api_string
@@ -128,6 +130,15 @@ class Model(Base):
     def __init__(self, name, config):
         self.name = name
         self.config = config
+
+
+class Notification(Base):
+    __tablename__ = 'notification'
+    id = Column(Integer(), primary_key=True)
+    last_notification = Column(DateTime(), nullable=False)
+
+    def __init__(self, last_notification):
+        self.last_notification = last_notification
 
 
 if __name__ == '__main__':

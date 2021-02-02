@@ -7,3 +7,13 @@ class Config(object):
     UPLOAD_IMAGES_FOLDER = 'C:/Users/LachubCz_NTB/Documents/GitHub/PERO-API/images'
     ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png'}
     APPLICATION_ROOT = ''
+
+    EMAIL_NOTIFICATION_ADDRESSES = ["example1@google.com", "example2@google.com"]
+    MAX_EMAIL_FREQUENCY = 3600
+
+    MAIL_SERVER = 'smtp.gmail.com'
+    MAIL_PORT = 465
+    MAIL_USERNAME = ''
+    MAIL_PASSWORD = ''
+    MAIL_USE_TLS = False
+    MAIL_USE_SSL = True

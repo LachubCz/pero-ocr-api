@@ -1,10 +1,12 @@
 import os
 import os.path
 import zipfile
+import datetime
+import traceback
 from io import BytesIO
 from urllib.parse import urlparse
-from flask import redirect, request, jsonify, send_file
-from werkzeug.utils import secure_filename
+from flask import redirect, request, jsonify, send_file, abort
+from flask_mail import Message, Mail
 from pathlib import Path
 from app.main import bp
 from app.db.api_key import require_user_api_key, require_super_user_api_key
@@ -15,7 +17,8 @@ from app.main.general import process_request, request_exists, cancel_request_by_
                              get_engine_dict, get_page_by_id, check_save_path, get_page_by_preferred_engine, \
                              request_belongs_to_api_key, get_engine_version, get_engine_by_page_id, \
                              change_page_to_processed, get_page_and_page_state, get_engine, get_latest_models, \
-                             get_document_pages, change_page_to_failed, get_page_statistics, change_page_path
+                             get_document_pages, change_page_to_failed, get_page_statistics, change_page_path, \
+                             get_request_by_page, get_notification, set_notification, get_api_key_by_id
 
 
 @bp.route('/')
@@ -140,27 +143,34 @@ def download_results(request_id, page_name, format):
         return jsonify({
             'status': 'failure',
             'message': 'Page doesn\'t exist.'}), 404
+    if page_state == PageState.EXPIRED:
+        return jsonify({
+            'status': 'failure',
+            'message': 'Page has expired.'}), 404
     if page_state != PageState.PROCESSED:
         return jsonify({
             'status': 'failure',
             'message': 'Page isn\'t processed.'}), 202
 
+    archive = zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), str(request_.id)+'.zip'), 'r')
+
     if format == 'alto':
-        return send_file(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), '{}_alto.xml'.format(page.name)),
-                         attachment_filename='{}.xml' .format(page.name),
-                         as_attachment=True)
+        data = archive.read('{}_alto.xml'.format(page.name))
+        extension = 'xml'
     elif format == 'page':
-        return send_file(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), '{}_page.xml'.format(page.name)),
-                         attachment_filename='{}.xml'.format(page.name),
-                         as_attachment=True)
+        data = archive.read('{}_page.xml'.format(page.name))
+        extension = 'xml'
     elif format == 'txt':
-        return send_file(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), '{}.txt'.format(page.name)),
-                         attachment_filename='{}.txt'.format(page.name),
-                         as_attachment=True)
+        data = archive.read('{}.txt'.format(page.name))
+        extension = 'txt'
     else:
         return jsonify({
             'status': 'failure',
             'message': 'Bad export format.'}), 400
+
+    return send_file(BytesIO(data),
+                     attachment_filename='{}.{}'.format(page.name, extension),
+                     as_attachment=True)
 
 
 @bp.route('/cancel_request/<string:request_id>', methods=['POST'])
@@ -215,15 +225,10 @@ def upload_results(page_id):
 
     check_save_path(page.request_id)
 
-    file = request.files['alto']
-    file.save(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id),
-                           secure_filename(page.name + '_alto.xml')))
-    file = request.files['page']
-    file.save(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id),
-                           secure_filename(page.name + '_page.xml')))
-    file = request.files['txt']
-    file.save(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id),
-                           secure_filename(page.name + '.txt')))
+    with zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'.zip'), 'a', zipfile.ZIP_DEFLATED) as zipf:
+        zipf.writestr(page.name + '_alto.xml', request.files['alto'].read())
+        zipf.writestr(page.name + '_page.xml', request.files['page'].read())
+        zipf.writestr(page.name + '.txt', request.files['txt'].read())
 
     change_page_to_processed(page_id, score, engine_version.id)
 
@@ -285,6 +290,8 @@ def download_engine(engine_id):
 @bp.route('/failed_processing/<string:page_id>', methods=['POST'])
 @require_super_user_api_key
 def report_failed_processing(page_id):
+    notification_timestamp = get_notification()
+
     fail_type = str(request.headers.get('type'))
     traceback = str(request.data)
     engine_version_str = str(request.headers.get('engine_version'))
@@ -293,6 +300,48 @@ def report_failed_processing(page_id):
     engine_version = get_engine_version(engine.id, engine_version_str)
 
     change_page_to_failed(page_id, fail_type, traceback, engine_version.id)
+
+    if fail_type == "PROCESSING_FAILED" and app.config['EMAIL_NOTIFICATION_ADDRESSES'] != []:
+        print(datetime.datetime.now(), notification_timestamp, (datetime.datetime.now() - notification_timestamp).total_seconds(), app.config["MAX_EMAIL_FREQUENCY"])
+        if (datetime.datetime.now() - notification_timestamp).total_seconds() > app.config["MAX_EMAIL_FREQUENCY"]:
+            with app.app_context():
+                mail = Mail()
+                mail.init_app(app)
+
+                page_db = get_page_by_id(page_id)
+                request_db = get_request_by_page(page_db)
+                api_key_db = get_api_key_by_id(request_db.api_key_id)
+
+                message_body = "processing_client_hostname: {}\n" \
+                               "processing_client_ip_address: {}\n" \
+                               "owner_api_key: {}\n" \
+                               "owner_description: {}\n" \
+                               "engine_id: {}\n" \
+                               "engine_name: {}\n" \
+                               "request_id: {}\n" \
+                               "page_id: {}\n" \
+                               "page_name: {}\n" \
+                               "page_url: {}\n" \
+                               "####################\n" \
+                               "traceback:\n{}" \
+                               .format(request.headers.get('hostname'),
+                                       request.headers.get('ip-address'),
+                                       api_key_db.api_string,
+                                       api_key_db.owner,
+                                       engine.id,
+                                       engine.name,
+                                       request_db.id,
+                                       page_db.id,
+                                       page_db.name,
+                                       page_db.url,
+                                       traceback)
+
+                msg = Message(subject="API Bot - PROCESSING_FAILED",
+                              body=message_body,
+                              sender=('PERO OCR - API BOT', app.config['MAIL_USERNAME']),
+                              recipients=app.config['EMAIL_NOTIFICATION_ADDRESSES'])
+                mail.send(msg)
+            set_notification()
 
     return jsonify({
         'status': 'success'}), 200
@@ -337,3 +386,17 @@ def download_image(request_id, page_name):
     return send_file(
         os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(request_.id), '{}.{}'.format(page.name, extension))
     )
+
+
+@bp.errorhandler(500)
+def handle_exception(e):
+    with app.app_context():
+        mail = Mail()
+        mail.init_app(app)
+        msg = Message(subject="API Bot - INTERNAL SERVER ERROR",
+                      body=traceback.format_exc(),
+                      sender=('PERO OCR - API BOT', app.config['MAIL_USERNAME']),
+                      recipients=app.config['EMAIL_NOTIFICATION_ADDRESSES'])
+        mail.send(msg)
+
+    abort(500)
