@@ -33,6 +33,8 @@ def get_args():
     parser.add_argument("--test-path", default='./', help="Path to store files in test mode.")
     parser.add_argument("--exit-on-done", action="store_true", help="Exit when no more data from server.")
     parser.add_argument("--time-limit", default=-1, type=float, help="Exit when runing longer than time-limit hours.")
+    parser.add_argument("--min-confidence", default=0.66, type=float,
+                        help="Lines with lower confidence will be discarded.")
 
     args = parser.parse_args()
 
@@ -202,7 +204,13 @@ def main():
                                                                    software_version_str="{}" .format(engine_version),
                                                                    processing_datetime=None)
 
-                    alto_xml = page_layout.to_altoxml_string(ocr_processing=ocr_processing)
+                    alto_xml = page_layout.to_altoxml_string(ocr_processing=ocr_processing,
+                                                             min_line_confidence=args.min_confidence)
+
+                    if args.min_confidence > 0:
+                        for region in page_layout.regions:
+                            region.lines = \
+                                [l for l in region.lines if l.transcription_confidence and l.transcription_confidence > args.min_confidence]
 
                     for line in page_layout.lines_iterator():
                         if arabic_helper.is_arabic_line(line.transcription):
