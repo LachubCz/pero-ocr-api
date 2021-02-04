@@ -91,7 +91,9 @@ def get_page_by_preferred_engine(engine_id):
                                                             .filter(Request.engine_id == engine_id)\
                                                             .filter(ApiKey.suspension == False).first()
     if not page:
-        page = db_session.query(Page).filter(Page.state == PageState.WAITING).first()
+        page = db_session.query(Page).join(Request).join(ApiKey).filter(ApiKey.suspension == False)\
+                                                  .filter(Page.state == PageState.WAITING).first()
+
         if page:
             engine_id = db_session.query(Request.engine_id).filter(Request.id == page.request_id).first()[0]
 
