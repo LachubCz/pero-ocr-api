@@ -70,7 +70,8 @@ def get_engine_dict():
     engines = db_session.query(Engine).all()
     engines_dict = dict()
     for engine in engines:
-        engines_dict[engine.name] = {'id': engine.id, 'description': engine.description}
+        engine_version, models = get_latest_models(engine.id)
+        engines_dict[engine.name] = {'id': engine.id, 'description': engine.description, 'models': [{'id': model.id, 'name': model.name} for model in models]}
 
     return engines_dict
 
@@ -91,7 +92,9 @@ def get_page_by_preferred_engine(engine_id):
                                                             .filter(Request.engine_id == engine_id)\
                                                             .filter(ApiKey.suspension == False).first()
     if not page:
-        page = db_session.query(Page).filter(Page.state == PageState.WAITING).first()
+        page = db_session.query(Page).join(Request).join(ApiKey).filter(ApiKey.suspension == False)\
+                                                  .filter(Page.state == PageState.WAITING).first()
+
         if page:
             engine_id = db_session.query(Request.engine_id).filter(Request.id == page.request_id).first()[0]
 
