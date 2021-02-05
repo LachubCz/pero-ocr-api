@@ -5,6 +5,7 @@ import datetime
 import traceback
 from io import BytesIO
 from urllib.parse import urlparse
+from filelock import FileLock, Timeout
 from flask import redirect, request, jsonify, send_file, abort
 from flask_mail import Message, Mail
 from pathlib import Path
@@ -151,22 +152,35 @@ def download_results(request_id, page_name, format):
         return jsonify({
             'status': 'failure',
             'message': 'Page isn\'t processed.'}), 202
-
-    archive = zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), str(request_.id)+'.zip'), 'r')
-
-    if format == 'alto':
-        data = archive.read('{}_alto.xml'.format(page.name))
-        extension = 'xml'
-    elif format == 'page':
-        data = archive.read('{}_page.xml'.format(page.name))
-        extension = 'xml'
-    elif format == 'txt':
-        data = archive.read('{}.txt'.format(page.name))
-        extension = 'txt'
-    else:
+    if format not in ['alto', 'page', 'txt']:
         return jsonify({
             'status': 'failure',
             'message': 'Bad export format.'}), 400
+
+    lock = FileLock(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'_lock'), timeout=1)
+    try:
+        with lock:
+            archive = zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), str(request_.id)+'.zip'), 'r')
+            if format == 'alto':
+                data = archive.read('{}_alto.xml'.format(page.name))
+                extension = 'xml'
+            elif format == 'page':
+                data = archive.read('{}_page.xml'.format(page.name))
+                extension = 'xml'
+            elif format == 'txt':
+                data = archive.read('{}.txt'.format(page.name))
+                extension = 'txt'
+    except Timeout:
+        archive = zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), str(request_.id) + '.zip'), 'r')
+        if format == 'alto':
+            data = archive.read('{}_alto.xml'.format(page.name))
+            extension = 'xml'
+        elif format == 'page':
+            data = archive.read('{}_page.xml'.format(page.name))
+            extension = 'xml'
+        elif format == 'txt':
+            data = archive.read('{}.txt'.format(page.name))
+            extension = 'txt'
 
     return send_file(BytesIO(data),
                      attachment_filename='{}.{}'.format(page.name, extension),
@@ -225,10 +239,18 @@ def upload_results(page_id):
 
     check_save_path(page.request_id)
 
-    with zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'.zip'), 'a', zipfile.ZIP_DEFLATED) as zipf:
-        zipf.writestr(page.name + '_alto.xml', request.files['alto'].read())
-        zipf.writestr(page.name + '_page.xml', request.files['page'].read())
-        zipf.writestr(page.name + '.txt', request.files['txt'].read())
+    lock = FileLock(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'_lock'), timeout=1)
+    try:
+        with lock:
+            with zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'.zip'), 'a', zipfile.ZIP_DEFLATED) as zipf:
+                zipf.writestr(page.name + '_alto.xml', request.files['alto'].read())
+                zipf.writestr(page.name + '_page.xml', request.files['page'].read())
+                zipf.writestr(page.name + '.txt', request.files['txt'].read())
+    except Timeout:
+        with zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id) + '.zip'), 'a', zipfile.ZIP_DEFLATED) as zipf:
+            zipf.writestr(page.name + '_alto.xml', request.files['alto'].read())
+            zipf.writestr(page.name + '_page.xml', request.files['page'].read())
+            zipf.writestr(page.name + '.txt', request.files['txt'].read())
 
     change_page_to_processed(page_id, score, engine_version.id)
 
