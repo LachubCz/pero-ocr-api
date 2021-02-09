@@ -11,7 +11,8 @@ from pathlib import Path
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from config import *
-from .db import Base, Page, PageState, Request, Notification
+from .db import Base, Page, PageState, Request, Notification, ApiKey, Engine
+from app.mail.mail import send_mail
 
 engine = create_engine(database_url, convert_unicode=True)
 
@@ -68,9 +69,40 @@ def processing_timeout():
     timestamp = now - delta
 
     pages = db_session.query(Page).filter(Page.state == PageState.PROCESSING).filter(Page.processing_timestamp < timestamp).all()
+    message_body = ""
     for page in pages:
         page.state = PageState.WAITING
         page.processing_timestamp = None
+
+        request = db_session.query(Request).filter(Request.id == page.request_id).first()
+        engine = db_session.query(Engine).filter(Engine.id == request.engine_id).first()
+        api_key = db_session.query(ApiKey).filter(ApiKey.id == request.api_key_id).first()
+
+        message_body += "owner_api_key: {}<br>" \
+                        "owner_description: {}<br>" \
+                        "engine_id: {}<br>" \
+                        "engine_name: {}<br>" \
+                        "request_id: {}<br>" \
+                        "page_id: {}<br>" \
+                        "page_name: {}<br>" \
+                        "page_url: {}<br><br>" \
+                        "####################<br><br>" \
+                        .format(api_key.api_string,
+                                api_key.owner,
+                                engine.id,
+                                engine.name,
+                                request.id,
+                                page.id,
+                                page.name,
+                                page.url)
+
+    if pages != [] and Config.EMAIL_NOTIFICATION_ADDRESSES != []:
+        send_mail(subject="API Bot - PROCESSING TIMEOUT",
+                  body=message_body,
+                  sender=('PERO OCR - API BOT', Config.MAIL_USERNAME),
+                  recipients=Config.EMAIL_NOTIFICATION_ADDRESSES,
+                  host=Config.MAIL_SERVER,
+                  password=Config.MAIL_PASSWORD)
 
     db_session.commit()
 
