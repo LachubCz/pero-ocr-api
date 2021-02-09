@@ -12,8 +12,5 @@ class Config(object):
     MAX_EMAIL_FREQUENCY = 3600
 
     MAIL_SERVER = 'smtp.gmail.com'
-    MAIL_PORT = 465
     MAIL_USERNAME = ''
     MAIL_PASSWORD = ''
-    MAIL_USE_TLS = False
-    MAIL_USE_SSL = True

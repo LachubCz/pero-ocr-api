@@ -7,7 +7,6 @@ from io import BytesIO
 from urllib.parse import urlparse
 from filelock import FileLock, Timeout
 from flask import redirect, request, jsonify, send_file, abort
-from flask_mail import Message, Mail
 from pathlib import Path
 from app.main import bp
 from app.db.api_key import require_user_api_key, require_super_user_api_key
@@ -20,6 +19,7 @@ from app.main.general import process_request, request_exists, cancel_request_by_
                              change_page_to_processed, get_page_and_page_state, get_engine, get_latest_models, \
                              get_document_pages, change_page_to_failed, get_page_statistics, change_page_path, \
                              get_request_by_page, get_notification, set_notification, get_api_key_by_id
+from app.mail.mail import send_mail
 
 
 @bp.route('/')
@@ -255,12 +255,14 @@ def upload_results(page_id):
     change_page_to_processed(page_id, score, engine_version.id)
 
     # remove image if exists
+    """
     extension = page.url.split('.')[-1]
     page_name = page.name
     request_id = page.request_id
     image_path = os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(request_id), '{}.{}'.format(page_name, extension))
     if os.path.isfile(image_path):
         os.remove(image_path)
+    """
 
     return jsonify({
         'status': 'success'}), 200
@@ -326,43 +328,41 @@ def report_failed_processing(page_id):
     if fail_type == "PROCESSING_FAILED" and app.config['EMAIL_NOTIFICATION_ADDRESSES'] != []:
         print(datetime.datetime.now(), notification_timestamp, (datetime.datetime.now() - notification_timestamp).total_seconds(), app.config["MAX_EMAIL_FREQUENCY"])
         if (datetime.datetime.now() - notification_timestamp).total_seconds() > app.config["MAX_EMAIL_FREQUENCY"]:
-            with app.app_context():
-                mail = Mail()
-                mail.init_app(app)
+            page_db = get_page_by_id(page_id)
+            request_db = get_request_by_page(page_db)
+            api_key_db = get_api_key_by_id(request_db.api_key_id)
 
-                page_db = get_page_by_id(page_id)
-                request_db = get_request_by_page(page_db)
-                api_key_db = get_api_key_by_id(request_db.api_key_id)
+            message_body = "processing_client_hostname: {}<br>" \
+                           "processing_client_ip_address: {}<br>" \
+                           "owner_api_key: {}<br>" \
+                           "owner_description: {}<br>" \
+                           "engine_id: {}<br>" \
+                           "engine_name: {}<br>" \
+                           "request_id: {}<br>" \
+                           "page_id: {}<br>" \
+                            "page_name: {}<br>" \
+                           "page_url: {}<br>" \
+                           "####################<br>" \
+                           "traceback:<br>{}" \
+                           .format(request.headers.get('hostname'),
+                                   request.headers.get('ip-address'),
+                                   api_key_db.api_string,
+                                   api_key_db.owner,
+                                   engine.id,
+                                   engine.name,
+                                   request_db.id,
+                                   page_db.id,
+                                   page_db.name,
+                                   page_db.url,
+                                   traceback.replace("\n", "<br>"))
 
-                message_body = "processing_client_hostname: {}\n" \
-                               "processing_client_ip_address: {}\n" \
-                               "owner_api_key: {}\n" \
-                               "owner_description: {}\n" \
-                               "engine_id: {}\n" \
-                               "engine_name: {}\n" \
-                               "request_id: {}\n" \
-                               "page_id: {}\n" \
-                               "page_name: {}\n" \
-                               "page_url: {}\n" \
-                               "####################\n" \
-                               "traceback:\n{}" \
-                               .format(request.headers.get('hostname'),
-                                       request.headers.get('ip-address'),
-                                       api_key_db.api_string,
-                                       api_key_db.owner,
-                                       engine.id,
-                                       engine.name,
-                                       request_db.id,
-                                       page_db.id,
-                                       page_db.name,
-                                       page_db.url,
-                                       traceback)
+            send_mail(subject="API Bot - PROCESSING_FAILED",
+                      body=message_body,
+                      sender=('PERO OCR - API BOT', app.config['MAIL_USERNAME']),
+                      recipients=app.config['EMAIL_NOTIFICATION_ADDRESSES'],
+                      host=app.config['MAIL_SERVER'],
+                      password=app.config['MAIL_PASSWORD'])
 
-                msg = Message(subject="API Bot - PROCESSING_FAILED",
-                              body=message_body,
-                              sender=('PERO OCR - API BOT', app.config['MAIL_USERNAME']),
-                              recipients=app.config['EMAIL_NOTIFICATION_ADDRESSES'])
-                mail.send(msg)
             set_notification()
 
     return jsonify({
@@ -412,13 +412,12 @@ def download_image(request_id, page_name):
 
 @bp.errorhandler(500)
 def handle_exception(e):
-    with app.app_context():
-        mail = Mail()
-        mail.init_app(app)
-        msg = Message(subject="API Bot - INTERNAL SERVER ERROR",
-                      body=traceback.format_exc(),
-                      sender=('PERO OCR - API BOT', app.config['MAIL_USERNAME']),
-                      recipients=app.config['EMAIL_NOTIFICATION_ADDRESSES'])
-        mail.send(msg)
+    if app.config['EMAIL_NOTIFICATION_ADDRESSES'] != []:
+        send_mail(subject="API Bot - INTERNAL SERVER ERROR",
+                  body=traceback.format_exc().replace("\n", "<br>"),
+                  sender=('PERO OCR - API BOT', app.config['MAIL_USERNAME']),
+                  recipients=app.config['EMAIL_NOTIFICATION_ADDRESSES'],
+                  host=app.config['MAIL_SERVER'],
+                  password=app.config['MAIL_PASSWORD'])
 
     abort(500)
