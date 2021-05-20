@@ -178,7 +178,7 @@ def main():
 
                 # Process image
                 try:
-                    page_layout = PageLayout(id=page_id, page_size=(image.shape[1], image.shape[0]))
+                    page_layout = PageLayout(id=page_id, page_size=(image.shape[0], image.shape[1]))
                     page_layout = page_parser.process_page(image, page_layout)
 
                 except KeyboardInterrupt:
