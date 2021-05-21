@@ -151,7 +151,7 @@ def main():
                                'engine-version': engine_version}
                     session.post(
                         join_url(config['SERVER']['base_url'], config['SERVER']['post_failed_processing'], page_id),
-                        data=exception,
+                        data=exception.encode('utf-8'),
                         headers=headers)
                     continue
 
