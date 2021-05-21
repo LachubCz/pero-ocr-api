@@ -13,7 +13,7 @@ from app.db.api_key import require_user_api_key, require_super_user_api_key
 from app.db.model import PageState
 from flask import current_app as app
 from flask import render_template
-from app.main.general import process_request, request_exists, cancel_request_by_id, \
+from app.main.general import create_request, request_exists, cancel_request_by_id, \
                              get_engine_dict, get_page_by_id, check_save_path, get_page_by_preferred_engine, \
                              request_belongs_to_api_key, get_engine_version, get_engine_by_page_id, \
                              change_page_to_processed, get_page_and_page_state, get_engine, get_latest_models, \
@@ -39,7 +39,7 @@ def documentation():
 def post_processing_request():
     api_string = request.headers.get('api-key')
     try:
-        db_request = process_request(api_string, request.json)
+        db_request = create_request(api_string, request.json)
     except:
         return jsonify({
             'status': 'failure',
@@ -58,6 +58,7 @@ def post_processing_request():
 @bp.route('/upload_image/<string:request_id>/<string:page_name>', methods=['POST'])
 @require_user_api_key
 def upload_image(request_id, page_name):
+    # todo return specific ids, use f' formated strings
     request_ = request_exists(request_id)
     if not request_:
         return jsonify({
@@ -75,16 +76,18 @@ def upload_image(request_id, page_name):
     if page_state != PageState.CREATED:
         return jsonify({
             'status': 'failure',
-            'message': 'Page isn\'t in CREATED state.'}), 202
+            'message': 'Page isn\'t in CREATED state.'}), 202 #todo proper code
 
     if 'file' not in request.files:
         return jsonify({
             'status': 'failure',
-            'message': 'Request file doesn\'t exists.'}), 400
+            'message': 'Request doesn\'t contain file.'}), 400
 
     file = request.files['file']
+    # todo make extension control case non sensitive
     if file and file.filename.split('.')[-1] in app.config['ALLOWED_IMAGE_EXTENSIONS']:
         Path(os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(page.request_id))).mkdir(parents=True, exist_ok=True)
+        #todo use os.path instead of split
         file.save(os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(page.request_id), page_name+'.'+file.filename.split('.')[-1]))
         o = urlparse(request.base_url)
         path = '{}://{}{}/download_image/{}/{}'.format(o.scheme, o.netloc, app.config['APPLICATION_ROOT'], request_id, page_name+'.'+file.filename.split('.')[-1])
@@ -94,7 +97,7 @@ def upload_image(request_id, page_name):
     else:
         return jsonify({
             'status': 'failure',
-            'message': 'Bad image extension.'}), 422
+            'message': 'Bad image extension.'}), 422 #todo add accapted extensions
 
 
 @bp.route('/request_status/<string:request_id>', methods=['GET'])
@@ -151,15 +154,15 @@ def download_results(request_id, page_name, format):
     if page_state != PageState.PROCESSED:
         return jsonify({
             'status': 'failure',
-            'message': 'Page isn\'t processed.'}), 202
+            'message': 'Page isn\'t processed.'}), 202 #todo change this to proper code, add state
     if format not in ['alto', 'page', 'txt']:
         return jsonify({
             'status': 'failure',
-            'message': 'Bad export format.'}), 400
+            'message': 'Bad export format.'}), 400 #todo add avaible format to message
 
-    lock = FileLock(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'_lock'), timeout=1)
     try:
-        with lock:
+        with FileLock(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'_lock'), timeout=1):
+            #todo change to function, change timeout to bigger value, unlock object
             archive = zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), str(request_.id)+'.zip'), 'r')
             if format == 'alto':
                 data = archive.read('{}_alto.xml'.format(page.name))
@@ -184,7 +187,7 @@ def download_results(request_id, page_name, format):
 
     return send_file(BytesIO(data),
                      attachment_filename='{}.{}'.format(page.name, extension),
-                     as_attachment=True)
+                     as_attachment=True) #todo set charset encoding
 
 
 @bp.route('/cancel_request/<string:request_id>', methods=['POST'])
@@ -229,7 +232,7 @@ def upload_results(page_id):
     if not page:
         return jsonify({
             'status': 'failure',
-            'message': 'Page doesn\'t exist.'}), 404
+            'message': 'Page doesn\'t exist.'}), 404 #todo log
 
     score = round(float(request.headers.get('score')) * 100, 2)
     engine_version_str = str(request.headers.get('engine-version'))
@@ -239,6 +242,7 @@ def upload_results(page_id):
 
     check_save_path(page.request_id)
 
+    # todo same lock stuff
     lock = FileLock(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'_lock'), timeout=1)
     try:
         with lock:
@@ -255,14 +259,12 @@ def upload_results(page_id):
     change_page_to_processed(page_id, score, engine_version.id)
 
     # remove image if exists
-    """
     extension = page.url.split('.')[-1]
     page_name = page.name
     request_id = page.request_id
     image_path = os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(request_id), '{}.{}'.format(page_name, extension))
     if os.path.isfile(image_path):
         os.remove(image_path)
-    """
 
     return jsonify({
         'status': 'success'}), 200

@@ -10,15 +10,6 @@ from app.db import Base
 from app.db.guid import GUID
 
 
-class RequestState(enum.Enum):
-    NEW = 'Request created.'
-    WAITING_FOR_PROCESSING = 'Waiting on start of processing.'
-    RUNNING_OCR = 'Running OCR.'
-    DONE = 'Request completed.'
-    FAILED = 'Request failed.'
-    CANCELED = 'Request canceled.'
-
-
 class PageState(enum.Enum):
     CREATED = 'Page was created.'
     WAITING = 'Page is waiting for processing.'
