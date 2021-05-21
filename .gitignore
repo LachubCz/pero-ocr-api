@@ -134,3 +134,4 @@ models/
 processed_requests/
 config.py
 database.db
+processing_client/config.ini
