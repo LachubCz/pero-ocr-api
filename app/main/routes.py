@@ -39,11 +39,13 @@ def documentation():
 def post_processing_request():
     api_string = request.headers.get('api-key')
     try:
-        db_request = create_request(api_string, request.json)
+        db_request, engine_id = create_request(api_string, request.json)
     except:
+        exception = traceback.format_exc()
         return jsonify({
             'status': 'failure',
-            'message': 'Bad JSON format.'}), 422
+            'message': 'Bad JSON format.',
+            'error_message': exception.encode('utf-8')}), 422
     else:
         if db_request is not None:
             return jsonify({
@@ -52,7 +54,7 @@ def post_processing_request():
         else:
             return jsonify({
                 'status': 'failure',
-                'message': 'Engine not found.'}), 404
+                'message': f'Engine {engine_id} not found.'}), 404
 
 
 @bp.route('/upload_image/<string:request_id>/<string:page_name>', methods=['POST'])

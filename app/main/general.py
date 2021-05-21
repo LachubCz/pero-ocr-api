@@ -23,7 +23,8 @@ def request_exists(request_id):
 
 
 def create_request(api_string, json_request):
-    engine = db_session.query(Engine).filter(Engine.id == int(json_request["engine"])).first()
+    engine_id = int(json_request["engine"])
+    engine = db_session.query(Engine).filter(Engine.id == engine_id).first()
     api_key = db_session.query(ApiKey).filter(ApiKey.api_string == api_string).first()
     if engine is not None:
         request = Request(engine.id, api_key.id)
@@ -36,8 +37,8 @@ def create_request(api_string, json_request):
                 page = Page(image_name, json_request["images"][image_name], PageState.WAITING, request.id)
             db_session.add(page)
         db_session.commit()
-        return request
-    return None
+        return request, engine_id
+    return None, engine_id
 
 
 def get_document_status(request_id):
