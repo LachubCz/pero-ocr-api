@@ -63,6 +63,7 @@ def require_super_user_api_key(f):
         if match_api_keys(request.headers.get('api-key'), Permission.SUPER_USER):
             return f(*args, **kwargs)
         else:
+            # todo send string bad api key
             abort(401)
     return decorated
 

@@ -6,7 +6,7 @@ from collections import defaultdict
 
 from app.db.model import Request, Engine, Page, PageState, ApiKey, EngineVersion, Model, EngineVersionModel, \
                          PageState, Notification
-from app import db_session
+from flask_sqlalchemy_session import current_session as db_session
 from flask import current_app as app
 
 
@@ -22,7 +22,7 @@ def request_exists(request_id):
         return None
 
 
-def process_request(api_string, json_request):
+def create_request(api_string, json_request):
     engine = db_session.query(Engine).filter(Engine.id == int(json_request["engine"])).first()
     api_key = db_session.query(ApiKey).filter(ApiKey.api_string == api_string).first()
     if engine is not None:
@@ -41,6 +41,7 @@ def process_request(api_string, json_request):
 
 
 def get_document_status(request_id):
+    # todo canceled, etc
     not_processed = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.state != PageState.PROCESSED).count()
     processed = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.state == PageState.PROCESSED).count()
     status = processed / (processed + not_processed)
@@ -51,6 +52,7 @@ def get_document_status(request_id):
 
 
 def cancel_request_by_id(request_id):
+    # todo in processing, waiting, created
     waiting_pages = db_session.query(Page).filter(Page.request_id == request_id)\
                                           .filter(Page.state != PageState.PROCESSED)\
                                           .filter(Page.state != PageState.NOT_FOUND)\
@@ -71,7 +73,7 @@ def get_engine_dict():
     engines_dict = dict()
     for engine in engines:
         engine_version, models = get_latest_models(engine.id)
-        engines_dict[engine.name] = {'id': engine.id, 'description': engine.description, 'models': [{'id': model.id, 'name': model.name} for model in models]}
+        engines_dict[engine.name] = {'id': engine.id, 'description': engine.description, 'engine_version': engine_version.version, 'models': [{'id': model.id, 'name': model.name} for model in models]}
 
     return engines_dict
 
