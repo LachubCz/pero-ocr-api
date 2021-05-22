@@ -42,10 +42,9 @@ def create_request(api_string, json_request):
 
 
 def get_document_status(request_id):
-    # todo canceled, etc
-    not_processed = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.state != PageState.PROCESSED).count()
-    processed = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.state == PageState.PROCESSED).count()
-    status = processed / (processed + not_processed)
+    all = db_session.query(Page).filter(Page.request_id == request_id).count()
+    not_processed = db_session.query(Page).filter(Page.request_id == request_id).filter(Page.state.in_([PageState.CREATED, PageState.WAITING, PageState.PROCESSING])).count()
+    status = (all - not_processed) / all
 
     quality = db_session.query(func.avg(Page.score)).filter(Page.request_id == request_id).filter(Page.state == PageState.PROCESSED).first()[0]
 
@@ -53,13 +52,8 @@ def get_document_status(request_id):
 
 
 def cancel_request_by_id(request_id):
-    # todo in processing, waiting, created
-    waiting_pages = db_session.query(Page).filter(Page.request_id == request_id)\
-                                          .filter(Page.state != PageState.PROCESSED)\
-                                          .filter(Page.state != PageState.NOT_FOUND)\
-                                          .filter(Page.state != PageState.INVALID_FILE) \
-                                          .filter(Page.state != PageState.PROCESSING_FAILED)\
-                                          .filter(Page.state != PageState.EXPIRED)\
+    waiting_pages = db_session.query(Page).filter(Page.request_id == request_id) \
+                                          .filter(Page.state.in_([PageState.CREATED, PageState.WAITING, PageState.PROCESSING]))\
                                           .all()
 
     timestamp = datetime.datetime.utcnow()
