@@ -31,8 +31,7 @@ def index():
 
 @bp.route('/docs')
 def documentation():
-    # todo change to up to date version
-    return redirect('https://app.swaggerhub.com/apis-docs/LachubCz/PERO-API/1.0.1')
+    return redirect('https://app.swaggerhub.com/apis-docs/LachubCz/PERO-API/1.0.3')
 
 
 @bp.route('/post_processing_request', methods=['POST'])
@@ -100,7 +99,7 @@ def upload_image(request_id, page_name):
         allowed_extesions = str(app.config["ALLOWED_IMAGE_EXTENSIONS"]).replace("\'", "")[1:-1]
         return jsonify({
             'status': 'failure',
-            'message': f'{extension} is not supported extension. Supported extensions are {allowed_extesions}'}), 422
+            'message': f'{extension} is not supported format. Supported formats are {allowed_extesions}.'}), 422
 
 
 @bp.route('/request_status/<string:request_id>', methods=['GET'])
@@ -163,7 +162,7 @@ def download_results(request_id, page_name, format):
     if format not in ['alto', 'page', 'txt']:
         return jsonify({
             'status': 'failure',
-            'message': 'Bad export format. Supported formats are alto, page, txt'}), 400
+            'message': 'Bad export format. Supported formats are alto, page, txt.'}), 400
 
     try:
         with FileLock(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'_lock'), timeout=1):
@@ -228,7 +227,7 @@ def get_processing_request(preferred_engine_id):
     else:
         return jsonify({
             'status': 'failure',
-            'message': 'No available page for processing.'}), 204
+            'message': 'No page available for processing.'}), 204
 
 
 @bp.route('/upload_results/<string:page_id>', methods=['POST'])
@@ -282,7 +281,7 @@ def download_engine(engine_id):
     if not engine:
         return jsonify({
             'status': 'failure',
-            'message': f'Engine {engine_id} was not found.'}), 404
+            'message': f'Engine {engine_id} has not been found.'}), 404
     engine_version, models = get_latest_models(engine_id)
 
     if len(models) == 2:
@@ -406,11 +405,11 @@ def download_image(request_id, page_name):
     if page_state == PageState.CREATED:
         return jsonify({
             'status': 'failure',
-            'message': f'Page {page_name} has not been uploaded yet.'}), 202
+            'message': f'Page {page_name} has not been uploaded yet.'}), 404
     if page_state == PageState.PROCESSED:
         return jsonify({
             'status': 'failure',
-            'message': f'Page {page_name} has been already processed.'}), 202
+            'message': f'Page {page_name} has been already processed.'}), 405
 
     return send_file(
         os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(request_.id), '{}.{}'.format(page.name, extension))
