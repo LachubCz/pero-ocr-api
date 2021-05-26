@@ -31,7 +31,7 @@ def index():
 
 @bp.route('/docs')
 def documentation():
-    return redirect('https://app.swaggerhub.com/apis-docs/LachubCz/PERO-API/1.0.3')
+    return redirect('https://app.swaggerhub.com/apis-docs/LachubCz/PERO-API/1.0.4')
 
 
 @bp.route('/post_processing_request', methods=['POST'])
