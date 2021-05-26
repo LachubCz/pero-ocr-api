@@ -166,7 +166,6 @@ def download_results(request_id, page_name, format):
 
     try:
         with FileLock(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'_lock'), timeout=1):
-            #todo change to function, change timeout to bigger value, unlock object
             archive = zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), str(request_.id)+'.zip'), 'r')
             if format == 'alto':
                 data = archive.read('{}_alto.xml'.format(page.name))
@@ -191,7 +190,7 @@ def download_results(request_id, page_name, format):
 
     return send_file(BytesIO(data),
                      attachment_filename='{}.{}'.format(page.name, extension),
-                     as_attachment=True) #todo set charset encoding
+                     as_attachment=True)
 
 
 @bp.route('/cancel_request/<string:request_id>', methods=['POST'])
@@ -247,9 +246,8 @@ def upload_results(page_id):
 
     check_save_path(page.request_id)
 
-    # todo same lock stuff
     try:
-        with FileLock(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'_lock'), timeout=1):
+        with FileLock(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'_lock'), timeout=5):
             with zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'.zip'), 'a', zipfile.ZIP_DEFLATED) as zipf:
                 zipf.writestr(page.name + '_alto.xml', request.files['alto'].read())
                 zipf.writestr(page.name + '_page.xml', request.files['page'].read())
@@ -314,7 +312,7 @@ def download_engine(engine_id):
         zf.writestr('config.ini', engine_config)
     memory_file.seek(0)
 
-    return send_file(memory_file, attachment_filename='{}#{}.zip'.format(engine.name, engine_version.version), as_attachment=True) #todo encoding
+    return send_file(memory_file, attachment_filename='{}#{}.zip'.format(engine.name, engine_version.version), as_attachment=True)
 
 
 @bp.route('/failed_processing/<string:page_id>', methods=['POST'])
