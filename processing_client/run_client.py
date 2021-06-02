@@ -121,8 +121,11 @@ def main():
             except requests.exceptions.ConnectionError:
                 status = 'failed'
             else:
-                request = r.json()
-                status = request['status']
+                if r.status_code == 200:
+                    request = r.json()
+                    status = request['status']
+                else:
+                    status = 'failed'
 
             if status == 'success':
                 page_id = request['page_id']
