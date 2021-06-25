@@ -1,0 +1,808 @@
+openapi: 3.0.0
+servers:
+  - description: Primary server.
+    url: https://pero-ocr.fit.vutbr.cz/api
+info:
+  version: 1.0.3
+  title: PERO-API
+  description: The API allows users to automaticaly transcribe several types of printed and handwritten documents. The provided OCR engines are able to transcribe even very low-quality printed documents in most european languages including Latin, old documents in Fraktur and similar scripts in German and Czech, and handwritten documents mainly in Czech language. The API provides several formats of transcriptions for download (ALTO, PAGE XML, plain text). Be aware that the images you provide may be used for further training of our systems.
+  contact:
+    email: ihradis@fit.vut.cz
+
+tags:
+- name: external
+  description: Operations available to users with regular API key
+- name: internal
+  description: Operations available to processing clients with special API key
+
+paths:
+  /post_processing_request:
+    post:
+      tags:
+      - external
+      summary: creates processing request
+      operationId: post_processing_request
+      security:
+        - ApiKey: [admin]
+      requestBody:
+        description: JSON definition of request to be processed.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessingRequest'
+      responses:
+        '200':
+          description: Request accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  request_id:
+                    type: string
+                    example: 1ad17f85-cbaa-4767-8ca2-e86f95d501be
+        '404':
+          description: Engine has not been found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Engine 3 has not been found.
+        '422':
+          description: Bad JSON formatting.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Bad JSON formatting.
+
+  /upload_image/{request_id}/{page_name}:
+    post:
+      tags:
+      - external
+      summary: uploads image to server
+      operationId: upload_image
+      security:
+        - ApiKey: [admin]
+      requestBody:
+        required: True
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+                - file
+      parameters:
+      - in: path
+        name: request_id
+        required: True
+        schema:
+          type: string
+      - in: path
+        name: page_name
+        required: True
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Image upload was succesfull.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+        '400':
+          description: Request either does not contain image file or page is not in CREATED state.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+              examples:
+                Missing image file:
+                  value:
+                    status: failure
+                    message: Request does not contain file.
+                Wrong page state:
+                  value:
+                    status: failure
+                    message: Page Magna_Carta is in WAITING state. It should be in CREATED state.
+        '401':
+          description: Request does not belong to API key.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Request 1ad17f85-cbaa-4767-8ca2-e86f95d501be does not belong to API key wXh0PUD4HL2S9CcOmlqCFj6xhzcJSQvfIwe7HjQ1Tym.
+        '404':
+          description: Either request or page does not exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+              examples:
+                Nonexistent request:
+                  value:
+                    status: failure
+                    message: Request 1ad17f85-cbaa-4767-8ca2-e86f95d501be does not exist.
+                Nonexistent page:
+                  value:
+                    status: failure
+                    message: Page Magna_Carta does not exist.
+        '422':
+          description: Unsupported image format.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: mp4 is not supported format. Supported formats are jpg, jpeg, png, jp2, j2k, jpf, jpm, jpg2, j2c, jpc, jpx, mj2, bmp, tiff, tif.
+
+  /request_status/{request_id}:
+    get:
+      tags:
+      - external
+      summary: returns status of processing request
+      operationId: request_status
+      security:
+        - ApiKey: [admin]
+      parameters:
+      - in: path
+        name: request_id
+        required: True
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Request status returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: succes
+                  request_status:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        quality:
+                          type: number
+                        state:
+                          type: string
+                    example:
+                        Magna_Carta: {quality: 89.7, state: PROCESSED}
+                        United_States_Declaration_of_Independence: {quality: , state: WAITING}
+        '401':
+          description: Request does not belong to API key.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Request 1ad17f85-cbaa-4767-8ca2-e86f95d501be does not belong to API key wXh0PUD4HL2S9CcOmlqCFj6xhzcJSQvfIwe7HjQ1Tym.
+        '404':
+          description: Request does not exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Request 1ad17f85-cbaa-4767-8ca2-e86f95d501be does not exist.
+
+  /get_engines:
+    get:
+      tags:
+      - external
+      summary: returns list of avaiable engines
+      operationId: get_engines
+      security:
+        - ApiKey: [admin]
+      responses:
+        '200':
+          description: List of engines returned.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      status:
+                        type: string
+                        example: succes
+                  - $ref: '#/components/schemas/Engines'
+
+  /download_results/{request_id}/{page_name}/{format}:
+    get:
+      tags:
+      - external
+      summary: returns processed page
+      operationId: download_results
+      security:
+        - ApiKey: [admin]
+      parameters:
+      - in: path
+        name: request_id
+        required: True
+        schema:
+          type: string
+      - in: path
+        name: page_name
+        required: True
+        schema:
+          type: string
+      - in: path
+        name: format
+        required: True
+        schema:
+          type: string
+          enum: [alto, page, txt]
+      responses:
+        '200':
+          description: Processed page returned in required format.
+          content:
+            text/plain: {}
+            application/xml: {}
+        '202':
+          description: Page isn't processed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Page isn't processed.
+        '400':
+          description: Bad export format.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Bad export format. Supported formats are alto, page, txt.
+        '401':
+          description: Request does not belong to API key.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Request 1ad17f85-cbaa-4767-8ca2-e86f95d501be does not belong to API key wXh0PUD4HL2S9CcOmlqCFj6xhzcJSQvfIwe7HjQ1Tym.
+        '404':
+          description: Either request or page does not exist or page is not in PROCESSED state.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+              examples:
+                Nonexistent request:
+                  value:
+                    status: failure
+                    message: Request 1ad17f85-cbaa-4767-8ca2-e86f95d501be does not exist.
+                Nonexistent page:
+                  value:
+                    status: failure
+                    message: Page Magna_Carta does not exist.
+                Page expired:
+                  value:
+                    status: failure
+                    message: Page Magna_Carta has expired. All processed pages are stored one week.
+                Page unprocessed:
+                  value:
+                    status: failure
+                    message: Page Magna_Carta is not processed yet.
+
+  /cancel_request/{request_id}:
+    post:
+      tags:
+      - external
+      summary: cancels processing request
+      operationId: cancel_request
+      security:
+        - ApiKey: [admin]
+      parameters:
+      - in: path
+        name: request_id
+        required: True
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Request canceled.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: succes
+        '401':
+          description: Request does not belong to API key.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Request 1ad17f85-cbaa-4767-8ca2-e86f95d501be does not belong to API key wXh0PUD4HL2S9CcOmlqCFj6xhzcJSQvfIwe7HjQ1Tym.
+        '404':
+          description: Request does not exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Request 1ad17f85-cbaa-4767-8ca2-e86f95d501be does not exist.
+
+  /get_processing_request/{preferred_engine_id}:
+    get:
+      tags:
+      - internal
+      summary: returns page information for processing
+      operationId: get_processing_request
+      security:
+        - ApiKey: [admin]
+      parameters:
+      - in: path
+        name: preferred_engine_id
+        required: True
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Page information returned.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      status:
+                        type: string
+                        example: succes
+                  - $ref: '#/components/schemas/ProcessingPage'
+        '204':
+          description: No page available for processing.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: No page available for processing.
+  
+  /upload_results/{page_id}:
+    post:
+      tags:
+      - internal
+      summary: saves xml, alto and txt files of processed page
+      operationId: upload_results
+      security:
+        - ApiKey: [admin]
+      parameters:
+      - in: path
+        name: page_id
+        required: True
+        schema:
+          type: string
+      - in: header
+        name: score
+        required: true
+        schema:
+          type: number
+      - in: header
+        name: engine-version
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                alto:
+                  type: string
+                  format: binary
+                page:
+                  type: string
+                  format: binary
+                txt:
+                  type: string
+                  format: binary
+              required:
+                - alto
+                - page
+                - txt
+      responses:
+        '200':
+          description: Processed page saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: succes  
+        '404':
+          description: Page does not exist.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Page Magna_Carta does not exist.
+
+  /download_engine/{engine_id}:
+    get:
+      tags:
+      - internal
+      summary: returns latest engine version
+      operationId: download_engine
+      security:
+        - ApiKey: [admin]
+      parameters:
+      - in: path
+        name: engine_id
+        required: True
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Engine returned in zip archive.
+          content:
+            application/zip: {}
+        '404':
+          description: Engine has not been found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Engine 7 has not been found.
+        '500':
+          description: Too many models for engine.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Too many models for engine.
+
+  /failed_processing/{page_id}:
+    post:
+      tags:
+      - internal
+      summary: reports processing problem
+      operationId: failed_processing
+      security:
+        - ApiKey: [admin]
+      parameters:
+      - in: path
+        name: page_id
+        required: True
+        schema:
+          type: string
+      - in: header
+        name: type
+        required: true
+        schema:
+          type: string
+          enum: [NOT_FOUND, INVALID_FILE, PROCESSING_FAILED]
+      - in: header
+        name: engine-version
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: Error traceback.
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: object
+            example: ''
+      responses:
+        '200':
+          description: Failed processing reported.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: succes  
+
+  /page_statistics:
+    get:
+      tags:
+      - internal
+      summary: returns page statistics for the last 24 hours
+      operationId: page_statistics
+      security:
+        - ApiKey: [admin]
+      responses:
+        '200':
+          description: Page statistics returned.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      status:
+                        type: string
+                        example: succes
+                  - $ref: '#/components/schemas/PageStatistics'
+
+  /download_image/{request_id}/{page_name}:
+    get:
+      tags:
+      - internal
+      summary: returns image saved on API server
+      operationId: download_image
+      security:
+        - ApiKey: [admin]
+      parameters:
+      - in: path
+        name: request_id
+        required: True
+        schema:
+          type: string
+      - in: path
+        name: page_name
+        required: True
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Image returned.
+          content:
+            image/jpg: {}
+            image/jpeg: {}
+            image/png: {}
+            image/jp2: {}
+            image/j2k: {}
+            image/jpf: {}
+            image/jpm: {}
+            image/jpg2: {}
+            image/j2c: {}
+            image/jpc: {}
+            image/jpx: {}
+            image/mj2: {}
+            image/bmp: {}
+            image/tiff: {}
+            image/tif: {}
+        '404':
+          description: Either request or page does not exist or page image has not been uploaded yet.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+              examples:
+                Nonexistent request:
+                  value:
+                    status: failure
+                    message: Request 1ad17f85-cbaa-4767-8ca2-e86f95d501be does not exist.
+                Nonexistent page:
+                  value:
+                    status: failure
+                    message: Page Magna_Carta does not exist.
+                Not uploaded page:
+                  value:
+                    status: failure
+                    message: Page Magna_Carta has not been uploaded yet.
+        '405':
+          description: Page has been already processed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: failure
+                  message:
+                    type: string
+                    example: Page Magna_Carta has been already processed.
+
+components:
+  schemas: 
+    ProcessingRequest:
+      properties:
+        engine:
+          type: integer
+          example: 1
+        images:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+              Magna_Carta: https://upload.wikimedia.org/wikipedia/commons/e/ee/Magna_Carta_%28British_Library_Cotton_MS_Augustus_II.106%29.jpg
+              United_States_Declaration_of_Independence: https://upload.wikimedia.org/wikipedia/commons/8/8f/United_States_Declaration_of_Independence.jpg
+              Treaty_of_Tordesillas: null
+
+    ProcessingPage:
+      properties:
+        page_id:
+          type: string
+          example: 0005dca9-7635-4971-90da-9c7e71cdb949
+        page_url:
+          type: string
+          example: https://upload.wikimedia.org/wikipedia/commons/e/ee/Magna_Carta_%28British_Library_Cotton_MS_Augustus_II.106%29.jpg
+        engine_id:
+          type: integer
+          example: 1
+
+    Engines:
+      type: object
+      properties:
+        engines:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              id:
+                type: integer
+              description:
+                type: string
+              engine_version:
+                type: string
+              models:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+          example:
+              lidove_noviny: {id: 1, description: "Engine for czech printed newspapers from the begining of the 20. century.", engine_version: "2021-02-04", models: [{id: 6, name: "layout_printed_2021-02-04"}, {id: 7, name: "czech_ocr_2021-02-04"}, {id: 8, name: "language_model_2021-02-04"}]}
+              historical_handwritten: {id: 2, description: "Engine for historical handwritten documents.", engine_version: "2021-01-15", models: [{id: 4, name: "layout_handwritten_2021-01-15"}, {id: 5, name: "handwritten_ocr_2021-01-15"}]}
+
+    PageStatistics:
+      type: object
+      properties:
+        engine_stats:
+          type: object
+          additionalProperties:
+            type: integer
+          example:
+              {"1": 484, "2": 2, "3": 11}
+        page_stats:
+          properties:
+            CANCELED:
+              type: integer
+            EXPIRED:
+              type: integer
+            INVALID_FILE:
+              type: integer
+            NOT_FOUND:
+              type: integer
+            PROCESSED:
+              type: integer
+            PROCESSING:
+              type: integer
+            PROCESSING_FAILED:
+              type: integer
+            WAITING:
+              type: integer
+          example:
+              {"CANCELED": 23, "EXPIRED": 404, "INVALID_FILE": 1, "NOT_FOUND": 2, "PROCESSED": 456, "PROCESSING": 1, "PROCESSING_FAILED": 2, "WAITING": 20}
+
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: api-key

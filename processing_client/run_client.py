@@ -121,8 +121,11 @@ def main():
             except requests.exceptions.ConnectionError:
                 status = 'failed'
             else:
-                request = r.json()
-                status = request['status']
+                if r.status_code == 200:
+                    request = r.json()
+                    status = request['status']
+                else:
+                    status = 'failed'
 
             if status == 'success':
                 page_id = request['page_id']
@@ -151,7 +154,7 @@ def main():
                                'engine-version': engine_version}
                     session.post(
                         join_url(config['SERVER']['base_url'], config['SERVER']['post_failed_processing'], page_id),
-                        data=exception,
+                        data=exception.encode('utf-8'),
                         headers=headers)
                     continue
 

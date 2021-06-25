@@ -128,3 +128,11 @@ dmypy.json
 # Pyre type checker
 .pyre/
 .idea/
+
+images/
+models/
+engines/
+processed_requests/
+config.py
+database.db
+processing_client/config.ini

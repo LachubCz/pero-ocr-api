@@ -3,7 +3,7 @@ import shutil
 import datetime
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from flask import Flask
 from flask_bootstrap import Bootstrap
@@ -127,10 +127,11 @@ def old_files_removals():
 
         db_session = session_factory()
         pages = db_session.query(Page).outerjoin(Request)\
-                          .filter(Request.finish_timestamp < timestamp)\
+                          .filter(Request.finish_timestamp < timestamp) \
+                          .filter(Page.state == PageState.PROCESSED) \
                           .all()
         for page in pages:
-            page.state = PageState.EXPIRED # todo change only processed
+            page.state = PageState.EXPIRED
 
         db_session.commit()
 

@@ -31,7 +31,7 @@ def index():
 
 @bp.route('/docs')
 def documentation():
-    return redirect('https://app.swaggerhub.com/apis-docs/LachubCz/PERO-API/1.0.1')
+    return redirect('https://app.swaggerhub.com/apis-docs/LachubCz/PERO-API/1.0.4')
 
 
 @bp.route('/post_processing_request', methods=['POST'])
@@ -39,11 +39,13 @@ def documentation():
 def post_processing_request():
     api_string = request.headers.get('api-key')
     try:
-        db_request = create_request(api_string, request.json)
+        db_request, engine_id = create_request(api_string, request.json)
     except:
+        exception = traceback.format_exc()
         return jsonify({
             'status': 'failure',
-            'message': 'Bad JSON format.'}), 422
+            'message': 'Bad JSON formatting.',
+            'error_message': exception.encode('utf-8')}), 422
     else:
         if db_request is not None:
             return jsonify({
@@ -52,66 +54,67 @@ def post_processing_request():
         else:
             return jsonify({
                 'status': 'failure',
-                'message': 'Engine not found.'}), 404
+                'message': f'Engine {engine_id} has not been found.'}), 404
 
 
 @bp.route('/upload_image/<string:request_id>/<string:page_name>', methods=['POST'])
 @require_user_api_key
 def upload_image(request_id, page_name):
-    # todo return specific ids, use f' formated strings
     request_ = request_exists(request_id)
+    api_string = request.headers.get('api-key')
     if not request_:
         return jsonify({
             'status': 'failure',
-            'message': 'Request doesn\'t exist.'}), 404
+            'message': f'Request {request_id} does not exist.'}), 404
     if not request_belongs_to_api_key(request.headers.get('api-key'), request_id):
         return jsonify({
             'status': 'failure',
-            'message': 'Request doesn\'t belong to this API key.'}), 401
+            'message': f'Request {request_id} does not belong to API key {api_string}.'}), 401
     page, page_state = get_page_and_page_state(request_id, page_name)
     if not page:
         return jsonify({
             'status': 'failure',
-            'message': 'Page doesn\'t exist.'}), 404
+            'message': f'Page {page_name} does not exist.'}), 404
     if page_state != PageState.CREATED:
         return jsonify({
             'status': 'failure',
-            'message': 'Page isn\'t in CREATED state.'}), 202 #todo proper code
+            'message': f'Page {page_name} is in {page_state.name} state. It should be in CREATED state.'}), 400
 
     if 'file' not in request.files:
         return jsonify({
             'status': 'failure',
-            'message': 'Request doesn\'t contain file.'}), 400
+            'message': 'Request does not contain file.'}), 400
 
     file = request.files['file']
-    # todo make extension control case non sensitive
-    if file and file.filename.split('.')[-1] in app.config['ALLOWED_IMAGE_EXTENSIONS']:
+    extension = os.path.splitext(file.filename)[1][1:].lower()
+    if file and extension in app.config['ALLOWED_IMAGE_EXTENSIONS']:
         Path(os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(page.request_id))).mkdir(parents=True, exist_ok=True)
-        #todo use os.path instead of split
-        file.save(os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(page.request_id), page_name+'.'+file.filename.split('.')[-1]))
+        file.save(os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(page.request_id), page_name + '.' + extension))
         o = urlparse(request.base_url)
-        path = '{}://{}{}/download_image/{}/{}'.format(o.scheme, o.netloc, app.config['APPLICATION_ROOT'], request_id, page_name+'.'+file.filename.split('.')[-1])
+        path = f'{o.scheme}://{o.netloc}{app.config["APPLICATION_ROOT"]}/download_image/{request_id}/{page_name}.{extension}'
         change_page_path(request_id, page_name, path)
         return jsonify({
             'status': 'success'})
     else:
+        allowed_extesions = str(app.config["ALLOWED_IMAGE_EXTENSIONS"]).replace("\'", "")[1:-1]
         return jsonify({
             'status': 'failure',
-            'message': 'Bad image extension.'}), 422 #todo add accapted extensions
+            'message': f'{extension} is not supported format. Supported formats are {allowed_extesions}.'}), 422
 
 
 @bp.route('/request_status/<string:request_id>', methods=['GET'])
 @require_user_api_key
 def request_status(request_id):
+    api_string = request.headers.get('api-key')
     if not request_exists(request_id):
         return jsonify({
             'status': 'failure',
-            'message': 'Request doesn\'t exist.'}), 404
+            'message': f'Request {request_id} does not exist.'}), 404
 
     if not request_belongs_to_api_key(request.headers.get('api-key'), request_id):
         return jsonify({
             'status': 'failure',
-            'message': 'Request doesn\'t belong to this API key.'}), 401
+            'message': f'Request {request_id} does not belong to API key {api_string}.'}), 401
 
     pages = get_document_pages(request_id)
 
@@ -133,36 +136,36 @@ def get_engines():
 @bp.route('/download_results/<string:request_id>/<string:page_name>/<string:format>', methods=['GET'])
 @require_user_api_key
 def download_results(request_id, page_name, format):
+    api_string = request.headers.get('api-key')
     request_ = request_exists(request_id)
     if not request_:
         return jsonify({
             'status': 'failure',
-            'message': 'Request doesn\'t exist.'}), 404
+            'message': f'Request {request_id} does not exist.'}), 404
     if not request_belongs_to_api_key(request.headers.get('api-key'), request_id):
         return jsonify({
             'status': 'failure',
-            'message': 'Request doesn\'t belong to this API key.'}), 401
+            'message': f'Request {request_id} does not belong to API key {api_string}.'}), 401
     page, page_state = get_page_and_page_state(request_id, page_name)
     if not page:
         return jsonify({
             'status': 'failure',
-            'message': 'Page doesn\'t exist.'}), 404
+            'message': f'Page {page_name} does not exist.'}), 404
     if page_state == PageState.EXPIRED:
         return jsonify({
             'status': 'failure',
-            'message': 'Page has expired.'}), 404
+            'message': f'Page {page_name} has expired. All processed pages are stored one week.'}), 404
     if page_state != PageState.PROCESSED:
         return jsonify({
             'status': 'failure',
-            'message': 'Page isn\'t processed.'}), 202 #todo change this to proper code, add state
+            'message': f'Page {page_name} is not processed yet.'}), 404
     if format not in ['alto', 'page', 'txt']:
         return jsonify({
             'status': 'failure',
-            'message': 'Bad export format.'}), 400 #todo add avaible format to message
+            'message': 'Bad export format. Supported formats are alto, page, txt.'}), 400
 
     try:
         with FileLock(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'_lock'), timeout=1):
-            #todo change to function, change timeout to bigger value, unlock object
             archive = zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(request_.id), str(request_.id)+'.zip'), 'r')
             if format == 'alto':
                 data = archive.read('{}_alto.xml'.format(page.name))
@@ -187,21 +190,22 @@ def download_results(request_id, page_name, format):
 
     return send_file(BytesIO(data),
                      attachment_filename='{}.{}'.format(page.name, extension),
-                     as_attachment=True) #todo set charset encoding
+                     as_attachment=True)
 
 
 @bp.route('/cancel_request/<string:request_id>', methods=['POST'])
 @require_user_api_key
 def cancel_request(request_id):
+    api_string = request.headers.get('api-key')
     if not request_exists(request_id):
         return jsonify({
             'status': 'failure',
-            'message': 'Request doesn\'t exist.'}), 404
+            'message': f'Request {request_id} does not exist.'}), 404
 
     if not request_belongs_to_api_key(request.headers.get('api-key'), request_id):
         return jsonify({
             'status': 'failure',
-            'message': 'Request doesn\'t belong to this API key.'}), 401
+            'message': f'Request {request_id} does not belong to API key {api_string}.'}), 401
 
     cancel_request_by_id(request_id)
     return jsonify({
@@ -222,7 +226,7 @@ def get_processing_request(preferred_engine_id):
     else:
         return jsonify({
             'status': 'failure',
-            'message': 'No available page for processing.'}), 404
+            'message': 'No page available for processing.'}), 204
 
 
 @bp.route('/upload_results/<string:page_id>', methods=['POST'])
@@ -232,7 +236,7 @@ def upload_results(page_id):
     if not page:
         return jsonify({
             'status': 'failure',
-            'message': 'Page doesn\'t exist.'}), 404 #todo log
+            'message': f'Page {page_id} does not exist.'}), 404
 
     score = round(float(request.headers.get('score')) * 100, 2)
     engine_version_str = str(request.headers.get('engine-version'))
@@ -242,10 +246,8 @@ def upload_results(page_id):
 
     check_save_path(page.request_id)
 
-    # todo same lock stuff
-    lock = FileLock(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'_lock'), timeout=1)
     try:
-        with lock:
+        with FileLock(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'_lock'), timeout=5):
             with zipfile.ZipFile(os.path.join(app.config['PROCESSED_REQUESTS_FOLDER'], str(page.request_id), str(page.request_id)+'.zip'), 'a', zipfile.ZIP_DEFLATED) as zipf:
                 zipf.writestr(page.name + '_alto.xml', request.files['alto'].read())
                 zipf.writestr(page.name + '_page.xml', request.files['page'].read())
@@ -277,7 +279,7 @@ def download_engine(engine_id):
     if not engine:
         return jsonify({
             'status': 'failure',
-            'message': 'Engine not found.'}), 404
+            'message': f'Engine {engine_id} has not been found.'}), 404
     engine_version, models = get_latest_models(engine_id)
 
     if len(models) == 2:
@@ -392,20 +394,20 @@ def download_image(request_id, page_name):
     if not request_:
         return jsonify({
             'status': 'failure',
-            'message': 'Request doesn\'t exist.'}), 404
+            'message': f'Request {request_id} does not exist.'}), 404
     page, page_state = get_page_and_page_state(request_id, page_name)
     if not page:
         return jsonify({
             'status': 'failure',
-            'message': 'Page doesn\'t exist.'}), 404
+            'message': f'Page {page_name} does not exist.'}), 404
     if page_state == PageState.CREATED:
         return jsonify({
             'status': 'failure',
-            'message': 'Page isn\'t uploaded yet.'}), 202
+            'message': f'Page {page_name} has not been uploaded yet.'}), 404
     if page_state == PageState.PROCESSED:
         return jsonify({
             'status': 'failure',
-            'message': 'Page is already processed.'}), 202
+            'message': f'Page {page_name} has been already processed.'}), 405
 
     return send_file(
         os.path.join(app.config['UPLOAD_IMAGES_FOLDER'], str(request_.id), '{}.{}'.format(page.name, extension))

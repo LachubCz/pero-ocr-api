@@ -60,11 +60,11 @@ def require_super_user_api_key(f):
     """
     @wraps(f)
     def decorated(*args, **kwargs):
-        if match_api_keys(request.headers.get('api-key'), Permission.SUPER_USER):
+        api_string = request.headers.get('api-key')
+        if match_api_keys(api_string, Permission.SUPER_USER):
             return f(*args, **kwargs)
         else:
-            # todo send string bad api key
-            abort(401)
+            abort(401, f'API key {api_string} either does not exist or does not have necessary permissions.')
     return decorated
 
 
@@ -75,8 +75,9 @@ def require_user_api_key(f):
     """
     @wraps(f)
     def decorated(*args, **kwargs):
-        if match_api_keys(request.headers.get('api-key'), Permission.USER):
+        api_string = request.headers.get('api-key')
+        if match_api_keys(api_string, Permission.USER):
             return f(*args, **kwargs)
         else:
-            abort(401)
+            abort(401, f'API key {api_string} either does not exist or does not have necessary permissions.')
     return decorated
