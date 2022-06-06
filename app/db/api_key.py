@@ -10,7 +10,7 @@ from app.db import Permission
 
 def generate_hash_key():
     """
-    @return: A hashkey for use to authenticate agains the API.
+    @return: A hashkey for use to authenticate against the API.
     """
     return base64.b64encode(hashlib.sha256(str(random.getrandbits(256)).encode('utf-8')).digest(),
                             random.choice(['rA', 'aZ', 'gQ', 'hH', 'hG', 'aR', 'DD']).encode('utf-8')).decode('utf-8').rstrip('==')
