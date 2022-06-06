@@ -5,7 +5,7 @@ servers:
 info:
   version: 1.0.3
   title: PERO-API
-  description: The API allows users to automaticaly transcribe several types of printed and handwritten documents. The provided OCR engines are able to transcribe even very low-quality printed documents in most european languages including Latin, old documents in Fraktur and similar scripts in German and Czech, and handwritten documents mainly in Czech language. The API provides several formats of transcriptions for download (ALTO, PAGE XML, plain text). Be aware that the images you provide may be used for further training of our systems.
+  description: The API allows users to automatically transcribe several types of printed and handwritten documents. The provided OCR engines are able to transcribe even very low-quality printed documents in most european languages including Latin, old documents in Fraktur and similar scripts in German and Czech, and handwritten documents mainly in Czech language. The API provides several formats of transcriptions for download (ALTO, PAGE XML, plain text). Be aware that the images you provide may be used for further training of our systems.
   contact:
     email: ihradis@fit.vut.cz
 
@@ -105,7 +105,7 @@ paths:
           type: string
       responses:
         '200':
-          description: Image upload was succesfull.
+          description: Image upload was successful.
           content:
             application/json:
               schema:
@@ -205,7 +205,7 @@ paths:
                 properties:
                   status:
                     type: string
-                    example: succes
+                    example: success
                   request_status:
                     type: object
                     additionalProperties:
@@ -249,7 +249,7 @@ paths:
     get:
       tags:
       - external
-      summary: returns list of avaiable engines
+      summary: returns list of available engines
       operationId: get_engines
       security:
         - ApiKey: [admin]
@@ -264,7 +264,7 @@ paths:
                     properties:
                       status:
                         type: string
-                        example: succes
+                        example: success
                   - $ref: '#/components/schemas/Engines'
 
   /download_results/{request_id}/{page_name}/{format}:
@@ -390,7 +390,7 @@ paths:
                 properties:
                   status:
                     type: string
-                    example: succes
+                    example: success
         '401':
           description: Request does not belong to API key.
           content:
@@ -443,7 +443,7 @@ paths:
                     properties:
                       status:
                         type: string
-                        example: succes
+                        example: success
                   - $ref: '#/components/schemas/ProcessingPage'
         '204':
           description: No page available for processing.
@@ -458,7 +458,7 @@ paths:
                   message:
                     type: string
                     example: No page available for processing.
-  
+
   /upload_results/{page_id}:
     post:
       tags:
@@ -512,7 +512,7 @@ paths:
                 properties:
                   status:
                     type: string
-                    example: succes  
+                    example: success
         '404':
           description: Page does not exist.
           content:
@@ -616,7 +616,7 @@ paths:
                 properties:
                   status:
                     type: string
-                    example: succes  
+                    example: success
 
   /page_statistics:
     get:
@@ -637,7 +637,7 @@ paths:
                     properties:
                       status:
                         type: string
-                        example: succes
+                        example: success
                   - $ref: '#/components/schemas/PageStatistics'
 
   /download_image/{request_id}/{page_name}:
@@ -717,7 +717,7 @@ paths:
                     example: Page Magna_Carta has been already processed.
 
 components:
-  schemas: 
+  schemas:
     ProcessingRequest:
       properties:
         engine:
@@ -768,7 +768,7 @@ components:
                     name:
                       type: string
           example:
-              lidove_noviny: {id: 1, description: "Engine for czech printed newspapers from the begining of the 20. century.", engine_version: "2021-02-04", models: [{id: 6, name: "layout_printed_2021-02-04"}, {id: 7, name: "czech_ocr_2021-02-04"}, {id: 8, name: "language_model_2021-02-04"}]}
+              lidove_noviny: {id: 1, description: "Engine for czech printed newspapers from the beginning of the 20. century.", engine_version: "2021-02-04", models: [{id: 6, name: "layout_printed_2021-02-04"}, {id: 7, name: "czech_ocr_2021-02-04"}, {id: 8, name: "language_model_2021-02-04"}]}
               historical_handwritten: {id: 2, description: "Engine for historical handwritten documents.", engine_version: "2021-01-15", models: [{id: 4, name: "layout_handwritten_2021-01-15"}, {id: 5, name: "handwritten_ocr_2021-01-15"}]}
 
     PageStatistics:
